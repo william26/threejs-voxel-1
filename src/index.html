@@ -19,9 +19,29 @@
         width: 100%;
         height: 100%;
       }
+      .controls {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 300px;
+        padding: 12px;
+        background: black;
+      }
     </style>
   </head>
   <body>
     <div id="root"></div>
+    <div class="controls">
+      <input type="number" />
+    </div>
+    <script type="text/javascript">
+      function setOptions(options) {
+        window.options = options;
+      }
+
+      function getOptions(options) {
+        window.options = options;
+      }
+    </script>
   </body>
 </html>

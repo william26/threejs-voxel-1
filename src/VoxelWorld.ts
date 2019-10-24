@@ -82,7 +82,8 @@ export class VoxelWorld {
           const baseHeight =
             (noise.simplex2(xWorld / CELL_HEIGHT, zWorld / CELL_HEIGHT) *
               CELL_HEIGHT) /
-            5;
+              5 +
+            120;
           const roughness =
             (noise.simplex2(
               (xWorld / CELL_HEIGHT) * 4,
@@ -97,7 +98,29 @@ export class VoxelWorld {
             ) *
               CELL_HEIGHT) /
             50;
-          if (yWorld < baseHeight + roughness + roughness2 + 10) {
+          const density1 = noise.simplex3(
+            xWorld / 64,
+            yWorld / 32,
+            zWorld / 64
+          );
+          const density2 = noise.simplex3(
+            xWorld / 16,
+            yWorld / 16,
+            zWorld / 16
+          );
+          const density3 = noise.simplex3(xWorld / 8, yWorld / 8, zWorld / 8);
+          // if (yWorld < baseHeight + roughness + roughness2 + 10) {
+          //   this.setVoxel(xWorld, yWorld, zWorld, 1);
+          // }
+          // if (xWorld % 100) {
+          //   console.log(density);
+          // }
+
+          if (
+            // density1 + density2 / 2 + density3 / 4 < 0 &&
+            yWorld <
+            baseHeight + roughness + roughness2
+          ) {
             this.setVoxel(xWorld, yWorld, zWorld, 1);
           }
         }
@@ -168,7 +191,7 @@ export class VoxelWorld {
 
     const geometry = new THREE.BufferGeometry();
     const material = new THREE.MeshLambertMaterial({
-      color: 0xff00ff * Math.random()
+      color: 0xffffff
     });
 
     const positionNumComponents = 3;
@@ -189,6 +212,8 @@ export class VoxelWorld {
     mesh.position.x = cellX * CELL_WIDTH;
     mesh.position.y = cellY * CELL_HEIGHT;
     mesh.position.z = cellZ * CELL_WIDTH;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
 
     scene.add(mesh);
   }
