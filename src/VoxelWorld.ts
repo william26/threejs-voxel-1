@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Vector3 } from "three";
 
 import * as noise from "./noise";
 noise.seed(0.1);
@@ -26,12 +27,14 @@ export class VoxelWorld {
 
   currentMesh?: string;
   mesh?: THREE.Mesh;
+  meshes: Array<THREE.Mesh>;
 
   constructor() {
     this.cells = {
       "0,0,0": new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH)
     };
     this.filled = {};
+    this.meshes = [];
   }
 
   computeVoxelOffset(x: number, y: number, z: number) {
@@ -109,13 +112,10 @@ export class VoxelWorld {
             zWorld / 16
           );
           const density3 = noise.simplex3(xWorld / 8, yWorld / 8, zWorld / 8);
-          // if (yWorld < baseHeight + roughness + roughness2 + 10) {
+
+          // if (yWorld < 20 || xWorld === 0 || zWorld === 0) {
           //   this.setVoxel(xWorld, yWorld, zWorld, 1);
           // }
-          // if (xWorld % 100) {
-          //   console.log(density);
-          // }
-
           if (
             // density1 + density2 / 2 + density3 / 4 < 0 &&
             yWorld <
@@ -128,7 +128,43 @@ export class VoxelWorld {
     }
   }
 
+  getBoundingBoxesAround(point: Vector3) {
+    const boundingBoxes: Array<THREE.Box3> = [];
+    const worldX = Math.floor(point.x);
+    const worldY = Math.floor(point.y);
+    const worldZ = Math.floor(point.z);
+
+    for (let x = worldX - 5; x < worldX + 5; x++) {
+      for (let y = worldY - 5; y < worldY + 5; y++) {
+        for (let z = worldZ - 5; z < worldZ + 5; z++) {
+          if (this.getVoxel(x, y, z)) {
+            const boundingBox = new THREE.Box3(
+              new Vector3(x, y, z),
+              new Vector3(x + 1, y + 1, z + 1)
+            );
+            boundingBoxes.push(boundingBox);
+          }
+        }
+      }
+    }
+
+    return boundingBoxes;
+  }
+
   generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
+    // try {
+    //   const storedGeometryData = JSON.parse(localStorage.getItem(
+    //     `${cellX},${cellY},${cellZ}`
+    //   ) as string);
+    //   if (storedGeometryData) {
+    //     return storedGeometryData;
+    //   } else {
+    //     console.log("No stored geometry data for cell, generating");
+    //   }
+    // } catch (e) {
+    //   console.log("No stored geometry data for cell, generating");
+    // }
+
     const positions = [];
     const normals = [];
     const indices = [];
@@ -166,11 +202,18 @@ export class VoxelWorld {
       }
     }
 
-    return {
+    const geometryData = {
       positions,
       normals,
       indices
     };
+
+    // localStorage.setItem(
+    //   `${cellX},${cellY},${cellZ}`,
+    //   JSON.stringify(geometryData)
+    // );
+
+    return geometryData;
   }
 
   addMeshToScene(scene: THREE.Scene, x: number, y: number, z: number) {
@@ -214,6 +257,7 @@ export class VoxelWorld {
     mesh.position.z = cellZ * CELL_WIDTH;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    this.meshes.push(mesh);
 
     scene.add(mesh);
   }

@@ -20,9 +20,9 @@ const aspect = window.innerWidth / window.innerHeight; // the canvas default
 const near = 0.1;
 const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-camera.position.z = 200;
-camera.position.x = 200;
-camera.position.y = 150;
+camera.position.z = 20;
+camera.position.x = 20;
+camera.position.y = 200;
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 function rotateFromMouseMovement(e: MouseEvent) {
@@ -51,7 +51,7 @@ const scene = new THREE.Scene();
 function addLight(x: number, y: number, z: number) {
   const color = 0xffffff;
   const intensity = 1;
-  const light = new THREE.DirectionalLight(0xffffff, 0.5);
+  const light = new THREE.DirectionalLight(0xffffff, 0.25);
   light.position.set(x, y, z);
   light.castShadow = true;
   scene.add(light);
@@ -59,17 +59,20 @@ function addLight(x: number, y: number, z: number) {
 }
 addLight(0.5, 1, 0.5);
 addLight(0.5, 1, -0.5);
+addLight(-0.5, 1, -0.5);
 
 const world = new VoxelWorld();
 
 var raycaster = new THREE.Raycaster();
 
-const player = new Player(camera);
+let player: Player | undefined;
 
 export type UpdateOptions = {
   KEYS: {
     [k: string]: boolean;
   };
+  world: VoxelWorld;
+  scene: THREE.Scene;
 };
 
 const cameraSpeed = new THREE.Vector3();
@@ -83,9 +86,13 @@ function render() {
     camera.updateProjectionMatrix();
   }
 
-  player.update({
-    KEYS
-  });
+  if (player) {
+    player.update({
+      KEYS,
+      world,
+      scene
+    });
+  }
 
   if (world.mesh) {
     raycaster.set(camera.position, new THREE.Vector3(0, -1, 0));
@@ -105,9 +112,13 @@ function render() {
   renderer.render(scene, camera);
 }
 
+let isLooping = true;
+
 function loop() {
   render();
-  window.requestAnimationFrame(loop);
+  if (isLooping) {
+    window.requestAnimationFrame(loop);
+  }
 }
 
 const KEYS: { [k: string]: boolean } = {};
@@ -118,7 +129,6 @@ document.addEventListener("keyup", e => {
   KEYS[e.key.toLowerCase()] = false;
 });
 
-render();
 function clearScene() {
   if (world.mesh) {
     scene.remove(world.mesh);
@@ -128,16 +138,16 @@ function clearScene() {
 function generateScene() {
   clearScene();
   console.time("world generation");
-  for (let x = 0; x < 7; x++) {
-    for (let z = 0; z < 7; z++) {
+  for (let x = 0; x < 4; x++) {
+    for (let z = 0; z < 4; z++) {
       world.fillData(x, 0, z);
       render();
     }
   }
   console.timeEnd("world generation");
-  console.time("world geometry generation");
-  for (let x = 0; x < 7; x++) {
-    for (let z = 0; z < 7; z++) {
+  console.time("world geometry generationlol");
+  for (let x = 0; x < 4; x++) {
+    for (let z = 0; z < 4; z++) {
       world.addMeshToScene(scene, x * 16, 0, z * 16);
       render();
     }
@@ -145,20 +155,24 @@ function generateScene() {
 }
 
 const planeGeometry = new THREE.PlaneGeometry();
+planeGeometry.computeFaceNormals();
 const planeMaterial = new THREE.MeshLambertMaterial({
   color: 0xffffff
 });
 
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+// const plane = new THREE.Mesh(planeGeometry, planeMaterial);
 
-plane.scale.x = 1000; // scene.add(plane);
-plane.scale.y = 1000; // scene.add(plane);
-plane.scale.z = 1000; // scene.add(plane);
-plane.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-plane.receiveShadow = true;
-scene.add(plane);
+// plane.scale.x = 1000; // scene.add(plane);
+// plane.scale.y = 1000; // scene.add(plane);
+// plane.scale.z = 1000; // scene.add(plane);
+// plane.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+// plane.receiveShadow = true;
+// plane.geometry.computeVertexNormals();
+// scene.add(plane);
 
 generateScene();
 
-console.timeEnd("world geometry generation");
+console.timeEnd("world geometry generationlol");
 loop();
+
+player = new Player(camera);
