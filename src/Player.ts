@@ -1,4 +1,4 @@
-import { Vector3, Camera, Raycaster } from "three";
+import { Vector3, Camera, Raycaster, Scene, PointLight } from "three";
 
 import { UpdateOptions } from "./index";
 import { setPosition, setCurrentCell } from "./hud/playerReducer";
@@ -6,11 +6,21 @@ import { setPosition, setCurrentCell } from "./hud/playerReducer";
 export class Player {
   camera: Camera;
   speedVector = new Vector3(0, 0, 0);
-  state: "walking" | "jumping" | "running" = "jumping";
+  state: "walking" | "jumping" | "flying" = "flying";
   stateModifier: "running" | "normal" = "normal";
+  previousKeys: { [k: string]: boolean };
+  light: PointLight;
 
-  constructor(camera: Camera) {
+  constructor(camera: Camera, scene: Scene) {
     this.camera = camera;
+    this.previousKeys = {};
+    const light = new PointLight(0xffffff, 0.9, 16, 1);
+    light.position.copy(camera.position);
+    light.castShadow = true;
+    light.shadow.mapSize.width = 512;
+    light.shadow.mapSize.height = 512;
+    // scene.add(light);
+    this.light = light;
   }
 
   public update(updateOptions: UpdateOptions) {
@@ -32,6 +42,11 @@ export class Player {
       this.stateModifier = "normal";
     }
 
+    if (KEYS.v && !this.previousKeys.v) {
+      this.state = this.state !== "flying" ? "flying" : "walking";
+      console.log("HELO", this.state);
+    }
+
     const walkingSpeed = this.stateModifier === "running" ? 0.25 : 0.1;
 
     this.speedVector.setX(0);
@@ -49,16 +64,28 @@ export class Player {
       this.speedVector.add(vectorToRight.multiplyScalar(walkingSpeed));
     }
 
-    if (KEYS[" "]) {
-      if (this.state === "walking") {
-        this.state = "jumping";
-        this.speedVector.y += 0.25;
+    if (this.state !== "flying") {
+      if (KEYS[" "]) {
+        if (this.state === "walking") {
+          this.state = "jumping";
+          this.speedVector.y += 0.25;
+        }
+      } else {
+        this.state = "walking";
       }
     } else {
-      this.state = "walking";
+      if (KEYS[" "]) {
+        this.speedVector.y = 0.25;
+      } else if (KEYS.c) {
+        this.speedVector.y = -0.25;
+      } else {
+        this.speedVector.y = 0;
+      }
     }
 
-    this.speedVector.y -= 0.02;
+    if (this.state !== "flying") {
+      this.speedVector.y -= 0.02;
+    }
 
     const newPosition = camera.position.clone();
     newPosition.add(this.speedVector);
@@ -175,5 +202,8 @@ export class Player {
     window.store.dispatch(
       setCurrentCell(world.getCellKeyForPosition(camera.position))
     );
+
+    this.previousKeys = { ...KEYS };
+    this.light.position.copy(camera.position);
   }
 }

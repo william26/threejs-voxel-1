@@ -1,4 +1,3 @@
-import { Vector3 } from "three";
 import { createAction, createReducer } from "redux-act";
 
 import { AppState } from "./hudapp";

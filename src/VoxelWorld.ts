@@ -5,7 +5,7 @@ import * as noise from "./noise";
 noise.seed(0.1);
 
 const CELL_WIDTH = 16;
-const CELL_HEIGHT = 256;
+const CELL_HEIGHT = 128;
 
 export class VoxelWorld {
   static faces: Array<{
@@ -114,70 +114,33 @@ export class VoxelWorld {
           const baseHeight =
             (noise.simplex2(xWorld / CELL_HEIGHT, zWorld / CELL_HEIGHT) *
               CELL_HEIGHT) /
-              5 +
-            120;
-          const roughness =
-            (noise.simplex2(
-              (xWorld / CELL_HEIGHT) * 4,
-              (zWorld / CELL_HEIGHT) * 4
-            ) *
-              CELL_HEIGHT) /
-            20;
-          const roughness2 =
-            (noise.simplex2(
-              (xWorld / CELL_HEIGHT) * 15,
-              (zWorld / CELL_HEIGHT) * 15
-            ) *
-              CELL_HEIGHT) /
-            50;
-          const density1 = noise.simplex3(
-            xWorld / 64,
-            yWorld / 32,
-            zWorld / 64
-          );
-          const density2 = noise.simplex3(
-            xWorld / 16,
-            yWorld / 16,
-            zWorld / 16
-          );
-          const density3 = noise.simplex3(xWorld / 8, yWorld / 8, zWorld / 8);
+              30 +
+            100;
 
-          // if (yWorld < 20 || xWorld === 0 || zWorld === 0) {
-          //   this.setVoxel(xWorld, yWorld, zWorld, 1);
-          // }
+          const roughness =
+            (noise.simplex2(xWorld / 32 + 20, zWorld / 32 + 20) * CELL_HEIGHT) /
+            30;
+          const roughness2 =
+            (noise.simplex2(xWorld / CELL_HEIGHT, zWorld / CELL_HEIGHT) *
+              CELL_HEIGHT) /
+            10;
+          const roughness3 =
+            (noise.simplex2(xWorld / 100, zWorld / 100) * CELL_HEIGHT) / 15;
+          const density1 = noise.simplex3(
+            xWorld / 50,
+            yWorld / 16,
+            zWorld / 50
+          );
           if (
-            // density1 + density2 / 2 + density3 / 4 < 0 &&
-            yWorld <
-            baseHeight + roughness + roughness2
+            (density1 > -0.2 || yWorld > 80) &&
+            // (1 / (yWorld * yWorld + 1)) * density3 < 0 &&
+            yWorld < baseHeight + roughness + roughness2 + roughness3
           ) {
             this.setVoxel(xWorld, yWorld, zWorld, 1);
           }
         }
       }
     }
-  }
-
-  getBoundingBoxesAround(point: Vector3) {
-    const boundingBoxes: Array<THREE.Box3> = [];
-    const worldX = Math.floor(point.x);
-    const worldY = Math.floor(point.y);
-    const worldZ = Math.floor(point.z);
-
-    for (let x = worldX - 5; x < worldX + 5; x++) {
-      for (let y = worldY - 5; y < worldY + 5; y++) {
-        for (let z = worldZ - 5; z < worldZ + 5; z++) {
-          if (this.getVoxel(x, y, z)) {
-            const boundingBox = new THREE.Box3(
-              new Vector3(x, y, z),
-              new Vector3(x + 1, y + 1, z + 1)
-            );
-            boundingBoxes.push(boundingBox);
-          }
-        }
-      }
-    }
-
-    return boundingBoxes;
   }
 
   generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
@@ -232,7 +195,7 @@ export class VoxelWorld {
   }
 
   getMeshesAround(position: Vector3) {
-    const meshes: Array<Mesh> = [];
+    let meshes: Array<Mesh | undefined> = [];
     const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
     const currentCellCenter = this.getCellWorldCenterForPosition(position);
     const positionFromCellCenter = position.clone().sub(currentCellCenter);
@@ -259,51 +222,76 @@ export class VoxelWorld {
       );
     };
 
-    const center = getMesh(0, 0, 0);
-    const left = getMesh(-1, 0, 0);
-    const front = getMesh(0, 0, 1);
-    const frontLeft = getMesh(-1, 0, 1);
-    const back = getMesh(0, 0, -1);
-    const backLeft = getMesh(-1, 0, -1);
-    const right = getMesh(1, 0, 0);
-    const frontRight = getMesh(1, 0, 1);
-    const backRight = getMesh(1, 0, -1);
-
-    // center
-    meshes.push(center);
-
-    if (positionFromCellCenter.x < 0) {
-      // left
-      meshes.push(left);
-
-      if (positionFromCellCenter.z < 0) {
-        // front
-        meshes.push(front);
-        // front left
-        meshes.push(frontLeft);
-      } else {
-        // back
-        meshes.push(back);
-        // back left
-        meshes.push(backLeft);
-      }
-    } else {
-      // right
-      meshes.push(right);
-      if (positionFromCellCenter.z < 0) {
-        // front
-        meshes.push(front);
-        // front right
-        meshes.push(frontRight);
-      } else {
-        // back
-        meshes.push(back);
-        // back right
-        meshes.push(backRight);
+    const GENERATED_CELLS_RADIUS = 1;
+    for (let x = 0; x <= GENERATED_CELLS_RADIUS * 2; x++) {
+      for (let y = 0; y <= GENERATED_CELLS_RADIUS * 2; y++) {
+        for (let z = 0; z <= GENERATED_CELLS_RADIUS * 2; z++) {
+          getMesh(
+            x - GENERATED_CELLS_RADIUS,
+            y - GENERATED_CELLS_RADIUS,
+            z - GENERATED_CELLS_RADIUS
+          );
+        }
       }
     }
 
-    return meshes.filter(Boolean);
+    const center = [getMesh(0, -1, 0), getMesh(0, 0, 0), getMesh(0, 1, 0)];
+    const left = [getMesh(-1, -10, 0), getMesh(-1, 0, 0), getMesh(-1, 1, 0)];
+    const front = [getMesh(0, -1, 1), getMesh(0, 0, 1), getMesh(0, 1, 1)];
+    const frontLeft = [
+      getMesh(-1, -10, 1),
+      getMesh(-1, 0, 1),
+      getMesh(-1, 1, 1)
+    ];
+    const back = [getMesh(0, -1, -1), getMesh(0, 0, -1), getMesh(0, 1, -1)];
+    const backLeft = [
+      getMesh(-1, -10, -1),
+      getMesh(-1, 0, -1),
+      getMesh(-1, 1, -1)
+    ];
+    const right = [getMesh(1, -1, 0), getMesh(1, 0, 0), getMesh(1, 1, 0)];
+    const frontRight = [getMesh(1, -1, 1), getMesh(1, 0, 1), getMesh(1, 1, 1)];
+    const backRight = [
+      getMesh(1, -1, -1),
+      getMesh(1, 0, -1),
+      getMesh(1, 1, -1)
+    ];
+
+    // center
+    meshes = [...meshes, ...center];
+
+    if (positionFromCellCenter.x < 0) {
+      // left
+      meshes = [...meshes, ...left];
+
+      if (positionFromCellCenter.z < 0) {
+        // front
+        meshes = [...meshes, ...front];
+        // front left
+        meshes = [...meshes, ...frontLeft];
+      } else {
+        // back
+        meshes = [...meshes, ...back];
+        // back left
+        meshes = [...meshes, ...backLeft];
+      }
+    } else {
+      // right
+      meshes = [...meshes, ...right];
+      if (positionFromCellCenter.z < 0) {
+        // front
+        meshes = [...meshes, ...front];
+        // front right
+        meshes = [...meshes, ...frontRight];
+      } else {
+        // back
+        meshes = [...meshes, ...back];
+        // back right
+        meshes = [...meshes, ...backRight];
+      }
+    }
+
+    return meshes.filter(Boolean) as Array<Mesh>;
   }
 
   addMeshToScene(scene: THREE.Scene, x: number, y: number, z: number) {

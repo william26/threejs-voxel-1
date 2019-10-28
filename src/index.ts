@@ -6,7 +6,14 @@ window.THREE = THREE;
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
 import { setGenerationProgress } from "./hud/worldReducer";
-import { Fog, Color } from "three";
+import {
+  Fog,
+  Color,
+  DirectionalLight,
+  SpotLight,
+  RectAreaLight,
+  CameraHelper
+} from "three";
 
 const canvas = document.createElement("canvas");
 
@@ -16,16 +23,17 @@ if (root) {
 }
 
 const renderer = new THREE.WebGLRenderer({ canvas });
-renderer.shadowMapEnabled = true;
+renderer.shadowMapType = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true;
 
 const fov = 75;
 const aspect = window.innerWidth / window.innerHeight; // the canvas default
 const near = 0.1;
 const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-camera.position.z = 20;
-camera.position.x = 20;
-camera.position.y = 137;
+camera.position.x = 34;
+camera.position.y = 140;
+camera.position.z = -104;
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 function rotateFromMouseMovement(e: MouseEvent) {
@@ -50,16 +58,29 @@ document.addEventListener("pointerlockchange", e => {
 });
 
 const scene = new THREE.Scene();
-scene.fog = new Fog(0xffffff, 0.1, 24);
+scene.fog = new Fog(0xffffff, 0.1, 32);
 scene.background = new Color(0xffffff);
 
-function addLight(x: number, y: number, z: number) {
-  const light = new THREE.DirectionalLight(0xffffff, 0.9);
-  light.position.set(x, y, z);
+function addLight() {
+  const light = new DirectionalLight(0xffffff, 0.9);
+  light.position.set(255, 255, 0);
+  light.target.position.set(0, 0, 0);
   light.castShadow = true;
+  light.shadow.mapSize.width = 512; // default
+  light.shadow.mapSize.height = 512; // default
+  light.shadow.camera.near = 0.5; // default
+  light.shadow.camera.far = 500; // default
+  const d = 1000;
+
+  light.shadow.camera.left = -d;
+  light.shadow.camera.right = d;
+  light.shadow.camera.top = d;
+  light.shadow.camera.bottom = -d;
+
+  scene.add(new CameraHelper(light.shadow.camera));
   scene.add(light);
 }
-addLight(0.3, 0.4, 0.3);
+addLight();
 
 const light = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(light);
@@ -173,8 +194,8 @@ function generateScene(cellsWidth: number) {
   }
 }
 
-generateScene(2);
+generateScene(5);
 
 loop();
 
-player = new Player(camera);
+player = new Player(camera, scene);
