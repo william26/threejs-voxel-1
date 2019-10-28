@@ -66,7 +66,7 @@ export class Player {
     const rayCasterA = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 1)
+        .setY(camera.position.y - 1.7)
         .setX(camera.position.x - 0.25)
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
@@ -76,7 +76,7 @@ export class Player {
     const rayCasterB = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 1)
+        .setY(camera.position.y - 1.7)
         .setX(camera.position.x + 0.25)
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
@@ -86,7 +86,7 @@ export class Player {
     const rayCasterC = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 1)
+        .setY(camera.position.y - 1.7)
         .setX(camera.position.x + 0.25)
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
@@ -96,7 +96,7 @@ export class Player {
     const rayCasterD = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 1)
+        .setY(camera.position.y - 1.7)
         .setX(camera.position.x - 0.25)
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
@@ -106,7 +106,7 @@ export class Player {
     const rayCasterAUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y + 0.5)
+        .setY(camera.position.y)
         .setX(camera.position.x - 0.25)
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
@@ -116,7 +116,7 @@ export class Player {
     const rayCasterBUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y + 0.5)
+        .setY(camera.position.y)
         .setX(camera.position.x + 0.25)
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
@@ -126,7 +126,7 @@ export class Player {
     const rayCasterCUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y + 0.5)
+        .setY(camera.position.y)
         .setX(camera.position.x + 0.25)
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
@@ -136,7 +136,7 @@ export class Player {
     const rayCasterDUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y + 0.5)
+        .setY(camera.position.y)
         .setX(camera.position.x - 0.25)
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
