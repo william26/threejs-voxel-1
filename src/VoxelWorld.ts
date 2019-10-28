@@ -54,17 +54,17 @@ export class VoxelWorld {
   }
 
   getCellCoordinates(position: Vector3) {
-    const cellX = Math.floor(position.x / 15);
-    const cellY = Math.floor(position.y / 255);
-    const cellZ = Math.floor(position.z / 15);
+    const cellX = Math.floor(position.x / CELL_WIDTH);
+    const cellY = Math.floor(position.y / CELL_HEIGHT);
+    const cellZ = Math.floor(position.z / CELL_WIDTH);
 
     return { cellX, cellY, cellZ };
   }
 
   getCellWorldCenterForPosition(position: Vector3) {
-    const cellX = Math.floor(position.x / 15);
-    const cellY = Math.floor(position.y / 255);
-    const cellZ = Math.floor(position.z / 15);
+    const cellX = Math.floor(position.x / CELL_WIDTH);
+    const cellY = Math.floor(position.y / CELL_HEIGHT);
+    const cellZ = Math.floor(position.z / CELL_WIDTH);
 
     return new Vector3(
       cellX * CELL_WIDTH + CELL_WIDTH / 2,
@@ -179,19 +179,6 @@ export class VoxelWorld {
   }
 
   generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
-    // try {
-    //   const storedGeometryData = JSON.parse(localStorage.getItem(
-    //     `${cellX},${cellY},${cellZ}`
-    //   ) as string);
-    //   if (storedGeometryData) {
-    //     return storedGeometryData;
-    //   } else {
-    //     console.log("No stored geometry data for cell, generating");
-    //   }
-    // } catch (e) {
-    //   console.log("No stored geometry data for cell, generating");
-    // }
-
     const positions = [];
     const normals = [];
     const indices = [];
@@ -234,11 +221,6 @@ export class VoxelWorld {
       normals,
       indices
     };
-
-    // localStorage.setItem(
-    //   `${cellX},${cellY},${cellZ}`,
-    //   JSON.stringify(geometryData)
-    // );
 
     return geometryData;
   }

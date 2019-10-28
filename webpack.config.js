@@ -10,7 +10,7 @@ module.exports = (env = {}) => ({
   module: {
     rules: [
       {
-        test: /.*\.ts$/,
+        test: /.*\.tsx?$/,
         use: "ts-loader",
         exclude: `${__dirname}/node_modules`
       },
@@ -31,7 +31,7 @@ module.exports = (env = {}) => ({
     })
   ],
   resolve: {
-    extensions: [".js", ".ts"]
+    extensions: [".js", ".ts", ".tsx", ".jsx"]
   },
   devServer: {
     host: "0.0.0.0"

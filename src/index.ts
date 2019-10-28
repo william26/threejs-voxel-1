@@ -1,3 +1,4 @@
+import "./hud/hudapp";
 import * as THREE from "three";
 
 window.THREE = THREE;

@@ -19,7 +19,11 @@
         width: 100%;
         height: 100%;
       }
-      .controls {
+      #controls {
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol";
         position: fixed;
         top: 0;
         right: 0;
@@ -31,17 +35,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <div class="controls">
-      <input type="number" />
-    </div>
-    <script type="text/javascript">
-      function setOptions(options) {
-        window.options = options;
-      }
-
-      function getOptions(options) {
-        window.options = options;
-      }
-    </script>
+    <div id="controls"></div>
   </body>
 </html>

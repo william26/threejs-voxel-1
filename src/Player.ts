@@ -1,6 +1,7 @@
 import { Vector3, Camera, Raycaster, Box3 } from "three";
 
 import { UpdateOptions } from "./index";
+import { setPosition, setCurrentCell } from "./hud/hudapp";
 
 export class Player {
   camera: Camera;
@@ -168,7 +169,11 @@ export class Player {
         }
       }
     });
+    window.store.dispatch(setPosition(camera.position.clone()));
 
     camera.position.add(this.speedVector);
+    window.store.dispatch(
+      setCurrentCell(world.getCellKeyForPosition(camera.position))
+    );
   }
 }
