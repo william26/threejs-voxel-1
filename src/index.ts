@@ -6,6 +6,7 @@ window.THREE = THREE;
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
 import { setGenerationProgress } from "./hud/worldReducer";
+import { Fog, Color } from "three";
 
 const canvas = document.createElement("canvas");
 
@@ -49,6 +50,8 @@ document.addEventListener("pointerlockchange", e => {
 });
 
 const scene = new THREE.Scene();
+scene.fog = new Fog(0xffffff, 0.1, 24);
+scene.background = new Color(0xffffff);
 
 function addLight(x: number, y: number, z: number) {
   const light = new THREE.DirectionalLight(0xffffff, 0.9);
