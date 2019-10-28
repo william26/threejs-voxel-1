@@ -5,6 +5,7 @@ window.THREE = THREE;
 
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
+import { setGenerationProgress } from "./hud/worldReducer";
 
 const canvas = document.createElement("canvas");
 
@@ -23,7 +24,7 @@ const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.z = 20;
 camera.position.x = 20;
-camera.position.y = 200;
+camera.position.y = 137;
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 function rotateFromMouseMovement(e: MouseEvent) {
@@ -50,19 +51,17 @@ document.addEventListener("pointerlockchange", e => {
 const scene = new THREE.Scene();
 
 function addLight(x: number, y: number, z: number) {
-  const color = 0xffffff;
-  const intensity = 1;
-  const light = new THREE.DirectionalLight(0xffffff, 0.25);
+  const light = new THREE.DirectionalLight(0xffffff, 0.9);
   light.position.set(x, y, z);
   light.castShadow = true;
   scene.add(light);
-  console.log("HI");
 }
-addLight(0.5, 1, 0.5);
-addLight(0.5, 1, -0.5);
-addLight(-0.5, 1, -0.5);
+addLight(0.3, 0.4, 0.3);
 
-const world = new VoxelWorld();
+const light = new THREE.AmbientLight(0xffffff, 0.1);
+scene.add(light);
+
+const world = new VoxelWorld(scene);
 
 var raycaster = new THREE.Raycaster();
 
@@ -136,34 +135,43 @@ function clearScene() {
   }
 }
 
-function generateScene() {
+function generateScene(cellsWidth: number) {
   clearScene();
-  console.time("world generation");
-  for (let x = 0; x < 4; x++) {
-    for (let z = 0; z < 4; z++) {
-      world.fillData(x, 0, z);
+  window.store.dispatch(setGenerationProgress(0));
+
+  let worldGenProgress = 0;
+  let maxSteps = cellsWidth * cellsWidth * 2;
+  function worldGenProgressStep() {
+    worldGenProgress++;
+    window.store.dispatch(setGenerationProgress(worldGenProgress / maxSteps));
+  }
+  for (let x = 0; x < cellsWidth; x++) {
+    for (let z = 0; z < cellsWidth; z++) {
+      worldGenProgressStep();
+      world.fillData(
+        x - Math.floor(cellsWidth / 2),
+        0,
+        z - Math.floor(cellsWidth / 2)
+      );
       render();
     }
   }
-  console.timeEnd("world generation");
-  console.time("world geometry generationlol");
-  for (let x = 0; x < 4; x++) {
-    for (let z = 0; z < 4; z++) {
-      world.addMeshToScene(scene, x * 16, 0, z * 16);
+  for (let x = 0; x < cellsWidth; x++) {
+    for (let z = 0; z < cellsWidth; z++) {
+      worldGenProgressStep();
+      world.addMeshToScene(
+        scene,
+        (x - Math.floor(cellsWidth / 2)) * 16,
+        0,
+        (z - Math.floor(cellsWidth / 2)) * 16
+      );
       render();
     }
   }
 }
 
-const planeGeometry = new THREE.PlaneGeometry();
-planeGeometry.computeFaceNormals();
-const planeMaterial = new THREE.MeshLambertMaterial({
-  color: 0xffffff
-});
+generateScene(2);
 
-generateScene();
-
-console.timeEnd("world geometry generationlol");
 loop();
 
 player = new Player(camera);

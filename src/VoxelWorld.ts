@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Vector3, Mesh, MeshLambertMaterial } from "three";
+import { Vector3, Mesh, MeshLambertMaterial, Scene } from "three";
 
 import * as noise from "./noise";
 noise.seed(0.1);
@@ -24,17 +24,19 @@ export class VoxelWorld {
   filled: {
     [k: string]: boolean;
   };
+  scene: Scene;
 
   currentMesh?: string;
   mesh?: Mesh;
   meshes: { [k: string]: Mesh };
 
-  constructor() {
+  constructor(scene: Scene) {
     this.cells = {
       "0,0,0": new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH)
     };
     this.filled = {};
     this.meshes = {};
+    this.scene = scene;
   }
 
   computeVoxelOffset(x: number, y: number, z: number) {
@@ -235,33 +237,37 @@ export class VoxelWorld {
     const currentCellCenter = this.getCellWorldCenterForPosition(position);
     const positionFromCellCenter = position.clone().sub(currentCellCenter);
 
-    const center = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX, cellY, cellZ)
-    ];
-    const left = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ)
-    ];
-    const front = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX, cellY, cellZ + 1)
-    ];
-    const frontLeft = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ + 1)
-    ];
-    const back = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX, cellY, cellZ - 1)
-    ];
-    const backLeft = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ - 1)
-    ];
-    const right = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ)
-    ];
-    const frontRight = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ + 1)
-    ];
-    const backRight = this.meshes[
-      this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ - 1)
-    ];
+    const getMesh = (offsetX: number, offsetY: number, offsetZ: number) => {
+      const mesh = this.meshes[
+        this.getCellKeyForCellCoordinates(
+          cellX + offsetX,
+          cellY + offsetY,
+          cellZ + offsetZ
+        )
+      ];
+
+      if (mesh) {
+        return mesh;
+      }
+
+      this.fillData(cellX + offsetX, cellY + offsetY, cellZ + offsetZ);
+      return this.addMeshToScene(
+        this.scene,
+        (cellX + offsetX) * CELL_WIDTH,
+        (cellY + offsetY) * CELL_HEIGHT,
+        (cellZ + offsetZ) * CELL_WIDTH
+      );
+    };
+
+    const center = getMesh(0, 0, 0);
+    const left = getMesh(-1, 0, 0);
+    const front = getMesh(0, 0, 1);
+    const frontLeft = getMesh(-1, 0, 1);
+    const back = getMesh(0, 0, -1);
+    const backLeft = getMesh(-1, 0, -1);
+    const right = getMesh(1, 0, 0);
+    const frontRight = getMesh(1, 0, 1);
+    const backRight = getMesh(1, 0, -1);
 
     // center
     meshes.push(center);
@@ -306,7 +312,7 @@ export class VoxelWorld {
     const cellZ = Math.floor(z / CELL_WIDTH);
 
     if (this.currentMesh === `${cellX},${cellY},${cellZ}`) {
-      return;
+      return this.meshes[`${cellX},${cellY},${cellZ}`];
     }
     this.currentMesh = `${cellX},${cellY},${cellZ}`;
 
@@ -345,6 +351,8 @@ export class VoxelWorld {
     this.meshes[cellKey] = mesh;
 
     scene.add(mesh);
+
+    return mesh;
   }
 }
 

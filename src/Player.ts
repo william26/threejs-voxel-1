@@ -1,7 +1,7 @@
-import { Vector3, Camera, Raycaster, Box3 } from "three";
+import { Vector3, Camera, Raycaster } from "three";
 
 import { UpdateOptions } from "./index";
-import { setPosition, setCurrentCell } from "./hud/hudapp";
+import { setPosition, setCurrentCell } from "./hud/playerReducer";
 
 export class Player {
   camera: Camera;
