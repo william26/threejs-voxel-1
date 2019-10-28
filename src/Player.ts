@@ -2,8 +2,6 @@ import { Vector3, Camera, Raycaster, Box3 } from "three";
 
 import { UpdateOptions } from "./index";
 
-const FLOOR_LEVEL = 1.7;
-
 export class Player {
   camera: Camera;
   speedVector = new Vector3(0, 0, 0);
@@ -156,21 +154,8 @@ export class Player {
       rayCasterDUp
     ].forEach(rayCaster => {
       const moveDistance = this.speedVector.length();
-
-      // const [, closestMesh] = world.meshes.reduce(
-      //   (acc, mesh) => {
-      //     const distance = this.camera.position.distanceTo(mesh.position);
-      //     if (distance < acc[0]) {
-      //       return [distance, mesh];
-      //     }
-      //     return [acc[0], acc[1]];
-      //   },
-      //   [Infinity, world.meshes[0]]
-      // );
-
-      const intersections = rayCaster.intersectObjects(
-        world.getMeshesAround(camera.position)
-      );
+      const meshes = world.getMeshesAround(camera.position);
+      const intersections = rayCaster.intersectObjects(meshes);
 
       for (let intersection of intersections) {
         if (intersection.distance < moveDistance + 0.2) {

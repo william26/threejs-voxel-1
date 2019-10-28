@@ -138,16 +138,16 @@ function clearScene() {
 function generateScene() {
   clearScene();
   console.time("world generation");
-  for (let x = 0; x < 9; x++) {
-    for (let z = 0; z < 9; z++) {
+  for (let x = 0; x < 4; x++) {
+    for (let z = 0; z < 4; z++) {
       world.fillData(x, 0, z);
       render();
     }
   }
   console.timeEnd("world generation");
   console.time("world geometry generationlol");
-  for (let x = 0; x < 9; x++) {
-    for (let z = 0; z < 9; z++) {
+  for (let x = 0; x < 4; x++) {
+    for (let z = 0; z < 4; z++) {
       world.addMeshToScene(scene, x * 16, 0, z * 16);
       render();
     }

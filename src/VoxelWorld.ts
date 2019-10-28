@@ -61,6 +61,18 @@ export class VoxelWorld {
     return { cellX, cellY, cellZ };
   }
 
+  getCellWorldCenterForPosition(position: Vector3) {
+    const cellX = Math.floor(position.x / 15);
+    const cellY = Math.floor(position.y / 255);
+    const cellZ = Math.floor(position.z / 15);
+
+    return new Vector3(
+      cellX * CELL_WIDTH + CELL_WIDTH / 2,
+      cellY * CELL_HEIGHT + CELL_HEIGHT / 2,
+      cellZ * CELL_WIDTH + CELL_WIDTH / 2
+    );
+  }
+
   getCellKeyForPosition(position: Vector3) {
     const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
     return this.getCellKeyForCellCoordinates(cellX, cellY, cellZ);
@@ -238,52 +250,72 @@ export class VoxelWorld {
   getMeshesAround(position: Vector3) {
     const meshes: Array<Mesh> = [];
     const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
-    // center
-    meshes.push(
-      this.meshes[this.getCellKeyForCellCoordinates(cellX, cellY, cellZ)]
-    );
-    // left
-    meshes.push(
-      this.meshes[this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ)]
-    );
-    // right
-    meshes.push(
-      this.meshes[this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ)]
-    );
-    // front
-    meshes.push(
-      this.meshes[this.getCellKeyForCellCoordinates(cellX, cellY, cellZ + 1)]
-    );
-    // back
-    meshes.push(
-      this.meshes[this.getCellKeyForCellCoordinates(cellX, cellY, cellZ - 1)]
-    );
-    // front left
-    meshes.push(
-      this.meshes[
-        this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ + 1)
-      ]
-    );
-    // front right
-    meshes.push(
-      this.meshes[
-        this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ + 1)
-      ]
-    );
-    // back left
-    meshes.push(
-      this.meshes[
-        this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ - 1)
-      ]
-    );
-    // back right
-    meshes.push(
-      this.meshes[
-        this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ - 1)
-      ]
-    );
+    const currentCellCenter = this.getCellWorldCenterForPosition(position);
+    const positionFromCellCenter = position.clone().sub(currentCellCenter);
 
-    return meshes;
+    const center = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX, cellY, cellZ)
+    ];
+    const left = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ)
+    ];
+    const front = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX, cellY, cellZ + 1)
+    ];
+    const frontLeft = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ + 1)
+    ];
+    const back = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX, cellY, cellZ - 1)
+    ];
+    const backLeft = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ - 1)
+    ];
+    const right = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ)
+    ];
+    const frontRight = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ + 1)
+    ];
+    const backRight = this.meshes[
+      this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ - 1)
+    ];
+
+    // center
+    meshes.push(center);
+
+    if (positionFromCellCenter.x < 0) {
+      // left
+      meshes.push(left);
+
+      if (positionFromCellCenter.z < 0) {
+        // front
+        meshes.push(front);
+        // front left
+        meshes.push(frontLeft);
+      } else {
+        // back
+        meshes.push(back);
+        // back left
+        meshes.push(backLeft);
+      }
+    } else {
+      // right
+      meshes.push(right);
+      if (positionFromCellCenter.z < 0) {
+        // front
+        meshes.push(front);
+        // front right
+        meshes.push(frontRight);
+      } else {
+        // back
+        meshes.push(back);
+        // back right
+        meshes.push(backRight);
+      }
+    }
+
+    return meshes.filter(Boolean);
   }
 
   addMeshToScene(scene: THREE.Scene, x: number, y: number, z: number) {
@@ -304,7 +336,7 @@ export class VoxelWorld {
 
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
-      color: 0xffffff
+      color: 0xffffff - Math.random() * 0xffffff
     });
 
     const positionNumComponents = 3;
