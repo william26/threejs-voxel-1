@@ -138,16 +138,16 @@ function clearScene() {
 function generateScene() {
   clearScene();
   console.time("world generation");
-  for (let x = 0; x < 4; x++) {
-    for (let z = 0; z < 4; z++) {
+  for (let x = 0; x < 9; x++) {
+    for (let z = 0; z < 9; z++) {
       world.fillData(x, 0, z);
       render();
     }
   }
   console.timeEnd("world generation");
   console.time("world geometry generationlol");
-  for (let x = 0; x < 4; x++) {
-    for (let z = 0; z < 4; z++) {
+  for (let x = 0; x < 9; x++) {
+    for (let z = 0; z < 9; z++) {
       world.addMeshToScene(scene, x * 16, 0, z * 16);
       render();
     }
@@ -159,16 +159,6 @@ planeGeometry.computeFaceNormals();
 const planeMaterial = new THREE.MeshLambertMaterial({
   color: 0xffffff
 });
-
-// const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-
-// plane.scale.x = 1000; // scene.add(plane);
-// plane.scale.y = 1000; // scene.add(plane);
-// plane.scale.z = 1000; // scene.add(plane);
-// plane.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-// plane.receiveShadow = true;
-// plane.geometry.computeVertexNormals();
-// scene.add(plane);
 
 generateScene();
 

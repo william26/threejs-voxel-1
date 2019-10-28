@@ -72,7 +72,7 @@ export class Player {
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterB = new Raycaster(
       camera.position
@@ -82,7 +82,7 @@ export class Player {
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterC = new Raycaster(
       camera.position
@@ -92,7 +92,7 @@ export class Player {
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterD = new Raycaster(
       camera.position
@@ -102,32 +102,32 @@ export class Player {
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterAUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 0.5)
+        .setY(camera.position.y + 0.5)
         .setX(camera.position.x - 0.25)
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterBUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 0.5)
+        .setY(camera.position.y + 0.5)
         .setX(camera.position.x + 0.25)
         .setZ(camera.position.z - 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterCUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 0.5)
+        .setY(camera.position.y + 0.5)
         .setX(camera.position.x + 0.25)
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
@@ -137,7 +137,7 @@ export class Player {
     const rayCasterDUp = new Raycaster(
       camera.position
         .clone()
-        .setY(camera.position.y - 0.5)
+        .setY(camera.position.y + 0.5)
         .setX(camera.position.x - 0.25)
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
@@ -168,7 +168,9 @@ export class Player {
       //   [Infinity, world.meshes[0]]
       // );
 
-      const intersections = rayCaster.intersectObjects(world.meshes);
+      const intersections = rayCaster.intersectObjects(
+        world.getMeshesAround(camera.position)
+      );
 
       for (let intersection of intersections) {
         if (intersection.distance < moveDistance + 0.2) {

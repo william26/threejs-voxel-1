@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Vector3 } from "three";
+import { Vector3, Mesh, MeshLambertMaterial } from "three";
 
 import * as noise from "./noise";
 noise.seed(0.1);
@@ -26,15 +26,15 @@ export class VoxelWorld {
   };
 
   currentMesh?: string;
-  mesh?: THREE.Mesh;
-  meshes: Array<THREE.Mesh>;
+  mesh?: Mesh;
+  meshes: { [k: string]: Mesh };
 
   constructor() {
     this.cells = {
       "0,0,0": new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH)
     };
     this.filled = {};
-    this.meshes = [];
+    this.meshes = {};
   }
 
   computeVoxelOffset(x: number, y: number, z: number) {
@@ -45,14 +45,29 @@ export class VoxelWorld {
   }
 
   getCellForVoxel(x: number, y: number, z: number) {
-    const cellX = Math.floor(x / 15);
-    const cellY = Math.floor(y / 255);
-    const cellZ = Math.floor(z / 15);
+    const cellKey = this.getCellKeyForPosition(new Vector3(x, y, z));
     const cell =
-      this.cells[`${cellX},${cellY},${cellZ}`] ||
+      this.cells[cellKey] ||
       new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH);
-    this.cells[`${cellX},${cellY},${cellZ}`] = cell;
+    this.cells[cellKey] = cell;
     return cell;
+  }
+
+  getCellCoordinates(position: Vector3) {
+    const cellX = Math.floor(position.x / 15);
+    const cellY = Math.floor(position.y / 255);
+    const cellZ = Math.floor(position.z / 15);
+
+    return { cellX, cellY, cellZ };
+  }
+
+  getCellKeyForPosition(position: Vector3) {
+    const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
+    return this.getCellKeyForCellCoordinates(cellX, cellY, cellZ);
+  }
+
+  getCellKeyForCellCoordinates(cellX: number, cellY: number, cellZ: number) {
+    return `${cellX},${cellY},${cellZ}`;
   }
 
   setVoxel(x: number, y: number, z: number, v: 1 | 0) {
@@ -216,6 +231,61 @@ export class VoxelWorld {
     return geometryData;
   }
 
+  getMeshes() {
+    return Object.values(this.meshes);
+  }
+
+  getMeshesAround(position: Vector3) {
+    const meshes: Array<Mesh> = [];
+    const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
+    // center
+    meshes.push(
+      this.meshes[this.getCellKeyForCellCoordinates(cellX, cellY, cellZ)]
+    );
+    // left
+    meshes.push(
+      this.meshes[this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ)]
+    );
+    // right
+    meshes.push(
+      this.meshes[this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ)]
+    );
+    // front
+    meshes.push(
+      this.meshes[this.getCellKeyForCellCoordinates(cellX, cellY, cellZ + 1)]
+    );
+    // back
+    meshes.push(
+      this.meshes[this.getCellKeyForCellCoordinates(cellX, cellY, cellZ - 1)]
+    );
+    // front left
+    meshes.push(
+      this.meshes[
+        this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ + 1)
+      ]
+    );
+    // front right
+    meshes.push(
+      this.meshes[
+        this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ + 1)
+      ]
+    );
+    // back left
+    meshes.push(
+      this.meshes[
+        this.getCellKeyForCellCoordinates(cellX - 1, cellY, cellZ - 1)
+      ]
+    );
+    // back right
+    meshes.push(
+      this.meshes[
+        this.getCellKeyForCellCoordinates(cellX + 1, cellY, cellZ - 1)
+      ]
+    );
+
+    return meshes;
+  }
+
   addMeshToScene(scene: THREE.Scene, x: number, y: number, z: number) {
     const cellX = Math.floor(x / CELL_WIDTH);
     const cellY = Math.floor(y / CELL_HEIGHT);
@@ -233,7 +303,7 @@ export class VoxelWorld {
     );
 
     const geometry = new THREE.BufferGeometry();
-    const material = new THREE.MeshLambertMaterial({
+    const material = new MeshLambertMaterial({
       color: 0xffffff
     });
 
@@ -251,13 +321,14 @@ export class VoxelWorld {
       new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents)
     );
     geometry.setIndex(indices);
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new Mesh(geometry, material);
     mesh.position.x = cellX * CELL_WIDTH;
     mesh.position.y = cellY * CELL_HEIGHT;
     mesh.position.z = cellZ * CELL_WIDTH;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    this.meshes.push(mesh);
+    const cellKey = this.getCellKeyForPosition(new Vector3(x, y, z));
+    this.meshes[cellKey] = mesh;
 
     scene.add(mesh);
   }
