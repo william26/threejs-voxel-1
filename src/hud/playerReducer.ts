@@ -7,6 +7,9 @@ export const setPosition = createAction<Vector3, AppState>("SET_POSITION");
 export const setCurrentCell = createAction<string, AppState>(
   "SET_CURRENT_CELL"
 );
+export const setCurrentChunk = createAction<string, AppState>(
+  "SET_CURRENT_CHUNK"
+);
 
 export const playerReducer = createReducer(
   {
@@ -17,15 +20,21 @@ export const playerReducer = createReducer(
     [setCurrentCell as any]: (state, currentCell: string) => ({
       ...state,
       currentCell
+    }),
+    [setCurrentChunk as any]: (state, currentChunk: string) => ({
+      ...state,
+      currentChunk
     })
   },
   {
     position: new Vector3(),
-    currentCell: ""
+    currentCell: "",
+    currentChunk: ""
   }
 );
 
 export type PlayerState = {
   position: Vector3;
   currentCell: string;
+  currentChunk: string;
 };

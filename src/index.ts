@@ -31,9 +31,9 @@ const aspect = window.innerWidth / window.innerHeight; // the canvas default
 const near = 0.1;
 const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-camera.position.x = 34;
+camera.position.x = 0;
 camera.position.y = 140;
-camera.position.z = -104;
+camera.position.z = 0;
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 function rotateFromMouseMovement(e: MouseEvent) {
@@ -58,7 +58,7 @@ document.addEventListener("pointerlockchange", e => {
 });
 
 const scene = new THREE.Scene();
-scene.fog = new Fog(0xffffff, 0.1, 32);
+// scene.fog = new Fog(0xffffff, 0.1, 32);
 scene.background = new Color(0xffffff);
 
 function addLight() {
@@ -110,6 +110,8 @@ function render() {
     camera.updateProjectionMatrix();
   }
 
+  world.generateChunks(camera.position);
+
   if (player) {
     player.update({
       KEYS,
@@ -118,20 +120,6 @@ function render() {
     });
   }
 
-  if (world.mesh) {
-    raycaster.set(camera.position, new THREE.Vector3(0, -1, 0));
-    let intersection = raycaster.intersectObject(world.mesh);
-
-    if (intersection) {
-      const [{ distance } = { distance: 0 }] = intersection;
-
-      if (distance < 10) {
-        cameraSpeed.y = 0;
-      } else {
-        cameraSpeed.y -= 0.01;
-      }
-    }
-  }
   camera.position.add(cameraSpeed);
   renderer.render(scene, camera);
 }
@@ -158,43 +146,6 @@ function clearScene() {
     scene.remove(world.mesh);
   }
 }
-
-function generateScene(cellsWidth: number) {
-  clearScene();
-  window.store.dispatch(setGenerationProgress(0));
-
-  let worldGenProgress = 0;
-  let maxSteps = cellsWidth * cellsWidth * 2;
-  function worldGenProgressStep() {
-    worldGenProgress++;
-    window.store.dispatch(setGenerationProgress(worldGenProgress / maxSteps));
-  }
-  for (let x = 0; x < cellsWidth; x++) {
-    for (let z = 0; z < cellsWidth; z++) {
-      worldGenProgressStep();
-      world.fillData(
-        x - Math.floor(cellsWidth / 2),
-        0,
-        z - Math.floor(cellsWidth / 2)
-      );
-      render();
-    }
-  }
-  for (let x = 0; x < cellsWidth; x++) {
-    for (let z = 0; z < cellsWidth; z++) {
-      worldGenProgressStep();
-      world.addMeshToScene(
-        scene,
-        (x - Math.floor(cellsWidth / 2)) * 16,
-        0,
-        (z - Math.floor(cellsWidth / 2)) * 16
-      );
-      render();
-    }
-  }
-}
-
-generateScene(5);
 
 loop();
 

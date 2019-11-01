@@ -1,7 +1,11 @@
 import { Vector3, Camera, Raycaster, Scene, PointLight } from "three";
 
 import { UpdateOptions } from "./index";
-import { setPosition, setCurrentCell } from "./hud/playerReducer";
+import {
+  setPosition,
+  setCurrentCell,
+  setCurrentChunk
+} from "./hud/playerReducer";
 
 export class Player {
   camera: Camera;
@@ -201,6 +205,9 @@ export class Player {
     camera.position.add(this.speedVector);
     window.store.dispatch(
       setCurrentCell(world.getCellKeyForPosition(camera.position))
+    );
+    window.store.dispatch(
+      setCurrentChunk(world.getChunkKeyForPosition(camera.position))
     );
 
     this.previousKeys = { ...KEYS };

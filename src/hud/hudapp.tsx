@@ -28,6 +28,7 @@ window.store = store;
 function Position() {
   const position = useSelector(state => state.player.position);
   const currentCell = useSelector(state => state.player.currentCell);
+  const currentChunk = useSelector(state => state.player.currentChunk);
   const worldGenProgress = useSelector(state => state.world.worldGenProgress);
   return (
     <>
@@ -37,6 +38,7 @@ function Position() {
         {position.z.toFixed(2)}
       </div>
       <div>Current cell: {currentCell}</div>
+      <div>Current chunk: {currentChunk}</div>
     </>
   );
 }

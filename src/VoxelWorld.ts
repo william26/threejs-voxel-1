@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import { Vector3, Mesh, MeshLambertMaterial, Scene } from "three";
+// import Worker from "worker-loader!./geometry-worker";
 
 import * as noise from "./noise";
 noise.seed(0.1);
 
 const CELL_WIDTH = 16;
-const CELL_HEIGHT = 128;
+const CELL_HEIGHT = 255;
+const CHUNK_WIDTH = 5;
 
 export class VoxelWorld {
   static faces: Array<{
@@ -31,9 +33,7 @@ export class VoxelWorld {
   meshes: { [k: string]: Mesh };
 
   constructor(scene: Scene) {
-    this.cells = {
-      "0,0,0": new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH)
-    };
+    this.cells = {};
     this.filled = {};
     this.meshes = {};
     this.scene = scene;
@@ -77,11 +77,26 @@ export class VoxelWorld {
 
   getCellKeyForPosition(position: Vector3) {
     const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
-    return this.getCellKeyForCellCoordinates(cellX, cellY, cellZ);
+    return this.getCoordinatesKey(cellX, cellY, cellZ);
   }
 
-  getCellKeyForCellCoordinates(cellX: number, cellY: number, cellZ: number) {
-    return `${cellX},${cellY},${cellZ}`;
+  getChunkCoordinates(position: Vector3) {
+    const { cellX, cellY, cellZ } = this.getCellCoordinates(position);
+
+    return {
+      chunkX: Math.floor(cellX / CHUNK_WIDTH),
+      chunkY: Math.floor(cellY / CHUNK_WIDTH),
+      chunkZ: Math.floor(cellZ / CHUNK_WIDTH)
+    };
+  }
+
+  getChunkKeyForPosition(position: Vector3) {
+    const { chunkX, chunkY, chunkZ } = this.getChunkCoordinates(position);
+    return this.getCoordinatesKey(chunkX, chunkY, chunkZ);
+  }
+
+  getCoordinatesKey(X: number, Y: number, Z: number) {
+    return `${X},${Y},${Z}`;
   }
 
   setVoxel(x: number, y: number, z: number, v: 1 | 0) {
@@ -144,6 +159,19 @@ export class VoxelWorld {
   }
 
   generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
+    // return new Promise<{
+    //   positions: any;
+    //   normals: any;
+    //   indices: any;
+    // }>((resolve, reject) => {
+    //   const worker = new Worker(require("worker-loader!./geometry-worker.ts"));
+    //   const cell = this.cells[this.getCoordinatesKey(cellX, cellY, cellZ)];
+    //   worker.postMessage([cell, cellX, cellY, cellZ]);
+    //   worker.onmessage = function(e: any) {
+    //     console.log(e.data);
+    //   };
+    // });
+
     const positions = [];
     const normals = [];
     const indices = [];
@@ -180,18 +208,54 @@ export class VoxelWorld {
         }
       }
     }
-
     const geometryData = {
       positions,
       normals,
       indices
     };
-
     return geometryData;
   }
 
   getMeshes() {
     return Object.values(this.meshes);
+  }
+
+  generateChunks(position: Vector3) {
+    const { chunkX, chunkZ } = this.getChunkCoordinates(position);
+
+    if (
+      this.cells[
+        this.getCoordinatesKey(
+          chunkX * CHUNK_WIDTH + 1,
+          0,
+          chunkZ * CHUNK_WIDTH + 1
+        )
+      ]
+    ) {
+      return;
+    }
+
+    console.log("GENERATING CHUNK", `${chunkX},0,${chunkZ}`);
+    console.time("DATA");
+    for (let x = 0; x < CHUNK_WIDTH; x++) {
+      for (let z = 0; z < CHUNK_WIDTH; z++) {
+        const cellX = chunkX * CHUNK_WIDTH + x;
+        const cellZ = chunkZ * CHUNK_WIDTH + z;
+        this.fillData(cellX, 0, cellZ);
+      }
+    }
+    console.timeEnd("DATA");
+    console.time("MESH");
+    for (let x = 0; x < CHUNK_WIDTH; x++) {
+      for (let z = 0; z < CHUNK_WIDTH; z++) {
+        this.addMeshToScene(
+          chunkX * CHUNK_WIDTH * CELL_WIDTH + x * CELL_WIDTH,
+          0,
+          chunkZ * CHUNK_WIDTH * CELL_WIDTH + z * CELL_WIDTH
+        );
+      }
+    }
+    console.timeEnd("MESH");
   }
 
   getMeshesAround(position: Vector3) {
@@ -202,7 +266,7 @@ export class VoxelWorld {
 
     const getMesh = (offsetX: number, offsetY: number, offsetZ: number) => {
       const mesh = this.meshes[
-        this.getCellKeyForCellCoordinates(
+        this.getCoordinatesKey(
           cellX + offsetX,
           cellY + offsetY,
           cellZ + offsetZ
@@ -213,13 +277,13 @@ export class VoxelWorld {
         return mesh;
       }
 
-      this.fillData(cellX + offsetX, cellY + offsetY, cellZ + offsetZ);
-      return this.addMeshToScene(
-        this.scene,
-        (cellX + offsetX) * CELL_WIDTH,
-        (cellY + offsetY) * CELL_HEIGHT,
-        (cellZ + offsetZ) * CELL_WIDTH
-      );
+      // this.fillData(cellX + offsetX, cellY + offsetY, cellZ + offsetZ);
+      // return this.addMeshToScene(
+      //   this.scene,
+      //   (cellX + offsetX) * CELL_WIDTH,
+      //   (cellY + offsetY) * CELL_HEIGHT,
+      //   (cellZ + offsetZ) * CELL_WIDTH
+      // );
     };
 
     const GENERATED_CELLS_RADIUS = 1;
@@ -294,7 +358,7 @@ export class VoxelWorld {
     return meshes.filter(Boolean) as Array<Mesh>;
   }
 
-  addMeshToScene(scene: THREE.Scene, x: number, y: number, z: number) {
+  addMeshToScene(x: number, y: number, z: number) {
     const cellX = Math.floor(x / CELL_WIDTH);
     const cellY = Math.floor(y / CELL_HEIGHT);
     const cellZ = Math.floor(z / CELL_WIDTH);
@@ -338,7 +402,7 @@ export class VoxelWorld {
     const cellKey = this.getCellKeyForPosition(new Vector3(x, y, z));
     this.meshes[cellKey] = mesh;
 
-    scene.add(mesh);
+    this.scene.add(mesh);
 
     return mesh;
   }
