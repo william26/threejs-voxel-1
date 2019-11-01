@@ -1,8 +1,19 @@
-import THREE from "three";
+import * as THREE from "three";
+import { Vector3 } from "three";
+
+const ctx: Worker = self as any;
 
 const CELL_WIDTH = 16;
 const CELL_HEIGHT = 255;
 const CHUNK_WIDTH = 5;
+
+function getCellCoordinates(position: Vector3) {
+  const cellX = Math.floor(position.x / CELL_WIDTH);
+  const cellY = Math.floor(position.y / CELL_HEIGHT);
+  const cellZ = Math.floor(position.z / CELL_WIDTH);
+
+  return { cellX, cellY, cellZ };
+}
 
 function computeVoxelOffset(x: number, y: number, z: number) {
   const voxelX = THREE.Math.euclideanModulo(x, CELL_WIDTH) | 0;
@@ -11,7 +22,25 @@ function computeVoxelOffset(x: number, y: number, z: number) {
   return voxelZ * CELL_WIDTH * CELL_HEIGHT + voxelY * CELL_WIDTH + voxelX;
 }
 
-function getVoxel(cell: any, x: number, y: number, z: number) {
+function getCoordinatesKey(X: number, Y: number, Z: number) {
+  return `${X},${Y},${Z}`;
+}
+
+function getCellKeyForPosition(position: Vector3) {
+  const { cellX, cellY, cellZ } = getCellCoordinates(position);
+  return getCoordinatesKey(cellX, cellY, cellZ);
+}
+
+function getCellForVoxel(cells: any, x: number, y: number, z: number) {
+  const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
+  const cell =
+    cells[cellKey] || new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH);
+  cells[cellKey] = cell;
+  return cell;
+}
+
+function getVoxel(cells: any, x: number, y: number, z: number) {
+  const cell = getCellForVoxel(cells, x, y, z);
   if (!cell) {
     return 0;
   }
@@ -19,7 +48,7 @@ function getVoxel(cell: any, x: number, y: number, z: number) {
   return cell[voxelOffset];
 }
 
-onmessage = function(e) {
+ctx.addEventListener("message", function(e) {
   const [cell, cellX, cellY, cellZ] = e.data as [any, number, number, number];
   const positions = [];
   const normals = [];
@@ -58,15 +87,13 @@ onmessage = function(e) {
       }
     }
   }
-  postMessage(
-    {
-      positions,
-      normals,
-      indices
-    },
-    ""
-  );
-};
+
+  ctx.postMessage({
+    positions,
+    normals,
+    indices
+  });
+});
 
 const faces = [
   {

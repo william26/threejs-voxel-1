@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Vector3, Mesh, MeshLambertMaterial, Scene } from "three";
-// import Worker from "worker-loader!./geometry-worker";
+import Worker from "worker-loader!./geometry.worker";
 
 import * as noise from "./noise";
 noise.seed(0.1);
@@ -159,61 +159,17 @@ export class VoxelWorld {
   }
 
   generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
-    // return new Promise<{
-    //   positions: any;
-    //   normals: any;
-    //   indices: any;
-    // }>((resolve, reject) => {
-    //   const worker = new Worker(require("worker-loader!./geometry-worker.ts"));
-    //   const cell = this.cells[this.getCoordinatesKey(cellX, cellY, cellZ)];
-    //   worker.postMessage([cell, cellX, cellY, cellZ]);
-    //   worker.onmessage = function(e: any) {
-    //     console.log(e.data);
-    //   };
-    // });
-
-    const positions = [];
-    const normals = [];
-    const indices = [];
-    const startX = cellX * CELL_WIDTH;
-    const startY = cellY * CELL_HEIGHT;
-    const startZ = cellZ * CELL_WIDTH;
-
-    for (let y = 0; y < CELL_HEIGHT; ++y) {
-      const voxelY = startY + y;
-      for (let z = 0; z < CELL_WIDTH; ++z) {
-        const voxelZ = startZ + z;
-        for (let x = 0; x < CELL_WIDTH; ++x) {
-          const voxelX = startX + x;
-          const voxel = this.getVoxel(voxelX, voxelY, voxelZ);
-          if (voxel) {
-            // There is a voxel here but do we need faces for it?
-            for (const { dir, corners } of VoxelWorld.faces) {
-              const neighbor = this.getVoxel(
-                voxelX + dir[0],
-                voxelY + dir[1],
-                voxelZ + dir[2]
-              );
-              if (!neighbor) {
-                // this voxel has no neighbor in this direction so we need a face.
-                const ndx = positions.length / 3;
-                for (const pos of corners) {
-                  positions.push(pos[0] + x, pos[1] + y, pos[2] + z);
-                  normals.push(...dir);
-                }
-                indices.push(ndx, ndx + 1, ndx + 2, ndx + 2, ndx + 1, ndx + 3);
-              }
-            }
-          }
-        }
-      }
-    }
-    const geometryData = {
-      positions,
-      normals,
-      indices
-    };
-    return geometryData;
+    return new Promise<{
+      positions: any;
+      normals: any;
+      indices: any;
+    }>((resolve, reject) => {
+      const worker = new Worker();
+      worker.postMessage([this.cells, cellX, cellY, cellZ]);
+      worker.onmessage = function(e: any) {
+        resolve(e.data);
+      };
+    });
   }
 
   getMeshes() {
@@ -358,7 +314,7 @@ export class VoxelWorld {
     return meshes.filter(Boolean) as Array<Mesh>;
   }
 
-  addMeshToScene(x: number, y: number, z: number) {
+  async addMeshToScene(x: number, y: number, z: number) {
     const cellX = Math.floor(x / CELL_WIDTH);
     const cellY = Math.floor(y / CELL_HEIGHT);
     const cellZ = Math.floor(z / CELL_WIDTH);
@@ -368,11 +324,11 @@ export class VoxelWorld {
     }
     this.currentMesh = `${cellX},${cellY},${cellZ}`;
 
-    const { positions, normals, indices } = this.generateGeometryDataForCell(
-      cellX,
-      cellY,
-      cellZ
-    );
+    const {
+      positions,
+      normals,
+      indices
+    } = await this.generateGeometryDataForCell(cellX, cellY, cellZ);
 
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
