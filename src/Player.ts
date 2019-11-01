@@ -6,6 +6,7 @@ import {
   setCurrentCell,
   setCurrentChunk
 } from "./hud/playerReducer";
+import { getCellKeyForPosition, getChunkKeyForPosition } from "./lsdfs";
 
 export class Player {
   camera: Camera;
@@ -204,10 +205,10 @@ export class Player {
 
     camera.position.add(this.speedVector);
     window.store.dispatch(
-      setCurrentCell(world.getCellKeyForPosition(camera.position))
+      setCurrentCell(getCellKeyForPosition(camera.position))
     );
     window.store.dispatch(
-      setCurrentChunk(world.getChunkKeyForPosition(camera.position))
+      setCurrentChunk(getChunkKeyForPosition(camera.position))
     );
 
     this.previousKeys = { ...KEYS };

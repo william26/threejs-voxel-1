@@ -7,46 +7,7 @@ const CELL_WIDTH = 16;
 const CELL_HEIGHT = 255;
 const CHUNK_WIDTH = 5;
 
-function getCellCoordinates(position: Vector3) {
-  const cellX = Math.floor(position.x / CELL_WIDTH);
-  const cellY = Math.floor(position.y / CELL_HEIGHT);
-  const cellZ = Math.floor(position.z / CELL_WIDTH);
-
-  return { cellX, cellY, cellZ };
-}
-
-function computeVoxelOffset(x: number, y: number, z: number) {
-  const voxelX = THREE.Math.euclideanModulo(x, CELL_WIDTH) | 0;
-  const voxelY = THREE.Math.euclideanModulo(y, CELL_HEIGHT) | 0;
-  const voxelZ = THREE.Math.euclideanModulo(z, CELL_WIDTH) | 0;
-  return voxelZ * CELL_WIDTH * CELL_HEIGHT + voxelY * CELL_WIDTH + voxelX;
-}
-
-function getCoordinatesKey(X: number, Y: number, Z: number) {
-  return `${X},${Y},${Z}`;
-}
-
-function getCellKeyForPosition(position: Vector3) {
-  const { cellX, cellY, cellZ } = getCellCoordinates(position);
-  return getCoordinatesKey(cellX, cellY, cellZ);
-}
-
-function getCellForVoxel(cells: any, x: number, y: number, z: number) {
-  const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
-  const cell =
-    cells[cellKey] || new Uint8Array(CELL_WIDTH * CELL_HEIGHT * CELL_WIDTH);
-  cells[cellKey] = cell;
-  return cell;
-}
-
-function getVoxel(cells: any, x: number, y: number, z: number) {
-  const cell = getCellForVoxel(cells, x, y, z);
-  if (!cell) {
-    return 0;
-  }
-  const voxelOffset = computeVoxelOffset(x, y, z);
-  return cell[voxelOffset];
-}
+import { getVoxel } from "./lsdfs";
 
 ctx.addEventListener("message", function(e) {
   const [cell, cellX, cellY, cellZ] = e.data as [any, number, number, number];
