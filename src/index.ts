@@ -5,15 +5,8 @@ window.THREE = THREE;
 
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
-import { setGenerationProgress } from "./hud/worldReducer";
-import {
-  Fog,
-  Color,
-  DirectionalLight,
-  SpotLight,
-  RectAreaLight,
-  CameraHelper
-} from "three";
+import { Color, DirectionalLight, CameraHelper } from "three";
+import { getChunkCoordinates, getKeyCoordinates } from "./lsdfs";
 
 const canvas = document.createElement("canvas");
 
@@ -87,8 +80,6 @@ scene.add(light);
 
 const world = new VoxelWorld(scene);
 
-var raycaster = new THREE.Raycaster();
-
 let player: Player | undefined;
 
 export type UpdateOptions = {
@@ -109,8 +100,20 @@ function render() {
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
   }
+  const { chunkX, chunkZ } = getChunkCoordinates(camera.position);
 
-  world.generateChunks(camera.position);
+  Object.keys(world.filledChunks).forEach(filledChunkKey => {
+    const { x, y, z } = getKeyCoordinates(filledChunkKey);
+    if (Math.abs(chunkX - x) > 1 || Math.abs(chunkZ - z) > 1) {
+      world.clearChunk(x, y, z);
+    }
+  });
+
+  for (let x = 0; x < 3; x++) {
+    for (let z = 0; z < 3; z++) {
+      world.generateChunks(chunkX + x - 1, 0, chunkZ + z - 1);
+    }
+  }
 
   if (player) {
     player.update({
@@ -140,12 +143,6 @@ document.addEventListener("keydown", e => {
 document.addEventListener("keyup", e => {
   KEYS[e.key.toLowerCase()] = false;
 });
-
-function clearScene() {
-  if (world.mesh) {
-    scene.remove(world.mesh);
-  }
-}
 
 loop();
 

@@ -1,13 +1,7 @@
-import * as THREE from "three";
-import { Vector3 } from "three";
-
 const ctx: Worker = self as any;
 
-const CELL_WIDTH = 16;
-const CELL_HEIGHT = 255;
-const CHUNK_WIDTH = 5;
-
 import { getVoxel } from "./lsdfs";
+import { CELL_WIDTH, CELL_HEIGHT } from "./world-constants";
 
 ctx.addEventListener("message", function(e) {
   const [cell, cellX, cellY, cellZ] = e.data as [any, number, number, number];

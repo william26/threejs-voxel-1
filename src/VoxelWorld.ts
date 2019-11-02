@@ -1,21 +1,26 @@
 import * as THREE from "three";
 import { Vector3, Mesh, MeshLambertMaterial, Scene } from "three";
-import Worker from "worker-loader!./geometry.worker";
+import GeometryWorker from "worker-loader!./geometry.worker";
+import DataWorker from "worker-loader!./world-data.worker";
 
 import * as noise from "./noise";
 noise.seed(0.1);
-
-const CELL_WIDTH = 16;
-const CELL_HEIGHT = 255;
-const CHUNK_WIDTH = 5;
 
 import {
   getCellKeyForPosition,
   getCoordinatesKey,
   computeVoxelOffset,
   getCellCoordinates,
-  getCellForVoxel
+  getCellForVoxel,
+  getKeyCoordinates
 } from "./lsdfs";
+import { CELL_WIDTH, CELL_HEIGHT, CHUNK_WIDTH } from "./world-constants";
+
+type WorldMeshGeometryData = {
+  positions: any;
+  normals: any;
+  indices: any;
+};
 
 export class VoxelWorld {
   static faces: Array<{
@@ -30,19 +35,12 @@ export class VoxelWorld {
 
   cells: {
     [k: string]: Uint8Array;
-  };
-  filled: {
-    [k: string]: boolean;
-  };
+  } = {};
   scene: Scene;
-
-  currentMesh?: string;
-  mesh?: Mesh;
   meshes: { [k: string]: Mesh };
 
   constructor(scene: Scene) {
     this.cells = {};
-    this.filled = {};
     this.meshes = {};
     this.scene = scene;
   }
@@ -59,116 +57,105 @@ export class VoxelWorld {
     );
   }
 
-  getChunkCoordinates(position: Vector3) {
-    const { cellX, cellY, cellZ } = getCellCoordinates(position);
-
-    return {
-      chunkX: Math.floor(cellX / CHUNK_WIDTH),
-      chunkY: Math.floor(cellY / CHUNK_WIDTH),
-      chunkZ: Math.floor(cellZ / CHUNK_WIDTH)
-    };
-  }
-
   setVoxel(x: number, y: number, z: number, v: 1 | 0) {
     const cell = getCellForVoxel(this.cells, x, y, z);
     const voxelOffset = computeVoxelOffset(x, y, z);
     cell[voxelOffset] = v;
   }
 
+  filledData: { [k: string]: boolean } = {};
+
   fillData(cellX: number, cellY: number, cellZ: number) {
-    if (this.filled[`${cellX},${cellY},${cellZ}`]) {
-      return null;
+    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
+    if (this.filledData[cellKey]) {
+      return Promise.resolve();
     }
-    this.filled[`${cellX},${cellY},${cellZ}`] = true;
-
-    for (let y = 0; y < CELL_HEIGHT; y++) {
-      const yWorld = y + cellY * CELL_HEIGHT;
-      for (let x = 0; x < CELL_WIDTH; x++) {
-        const xWorld = x + cellX * CELL_WIDTH;
-        for (let z = 0; z < CELL_WIDTH; z++) {
-          const zWorld = z + cellZ * CELL_WIDTH;
-          const baseHeight =
-            (noise.simplex2(xWorld / CELL_HEIGHT, zWorld / CELL_HEIGHT) *
-              CELL_HEIGHT) /
-              30 +
-            100;
-
-          const roughness =
-            (noise.simplex2(xWorld / 32 + 20, zWorld / 32 + 20) * CELL_HEIGHT) /
-            30;
-          const roughness2 =
-            (noise.simplex2(xWorld / CELL_HEIGHT, zWorld / CELL_HEIGHT) *
-              CELL_HEIGHT) /
-            10;
-          const roughness3 =
-            (noise.simplex2(xWorld / 100, zWorld / 100) * CELL_HEIGHT) / 15;
-          const density1 = noise.simplex3(
-            xWorld / 50,
-            yWorld / 16,
-            zWorld / 50
+    this.filledData[cellKey] = true;
+    return new Promise(resolve => {
+      const worker = new DataWorker();
+      worker.onmessage = e => {
+        const voxelsToSet = e.data;
+        for (let voxelToSet of voxelsToSet) {
+          this.setVoxel(
+            voxelToSet.x,
+            voxelToSet.y,
+            voxelToSet.z,
+            voxelToSet.type
           );
-          if (
-            (density1 > -0.2 || yWorld > 80) &&
-            // (1 / (yWorld * yWorld + 1)) * density3 < 0 &&
-            yWorld < baseHeight + roughness + roughness2 + roughness3
-          ) {
-            this.setVoxel(xWorld, yWorld, zWorld, 1);
-          }
         }
-      }
-    }
+        resolve();
+      };
+      worker.postMessage([cellX, cellY, cellZ]);
+    });
   }
 
+  filledGeometry: { [k: string]: boolean } = {};
+
   generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
+    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
+    if (this.filledGeometry[cellKey]) {
+      return Promise.resolve(null);
+    }
+    this.filledGeometry[cellKey] = true;
     return new Promise<{
       positions: any;
       normals: any;
       indices: any;
-    }>((resolve, reject) => {
-      const worker = new Worker();
+    }>(resolve => {
+      const worker = new GeometryWorker();
       worker.postMessage([this.cells, cellX, cellY, cellZ]);
-      worker.onmessage = function(e: any) {
-        resolve(e.data);
+      worker.onmessage = (e: any) => {
+        resolve(e.data as WorldMeshGeometryData);
       };
     });
   }
 
-  getMeshes() {
-    return Object.values(this.meshes);
+  filledChunks: { [k: string]: boolean } = {};
+
+  clearChunk(chunkX: number, chunkY: number, chunkZ: number) {
+    const chunkKey = getCoordinatesKey(chunkX, chunkY, chunkZ);
+    if (this.filledChunks[chunkKey]) {
+      const cellMeshes = Object.keys(this.meshes);
+      cellMeshes.forEach(cellKey => {
+        const { x: cellX, y: cellY, z: cellZ } = getKeyCoordinates(cellKey);
+
+        const cellChunkKey = getCoordinatesKey(
+          Math.floor(cellX / CHUNK_WIDTH),
+          Math.floor(cellY / CHUNK_WIDTH),
+          Math.floor(cellZ / CHUNK_WIDTH)
+        );
+
+        if (chunkKey === cellChunkKey) {
+          this.filledGeometry[cellKey] = false;
+          this.filledMeshes[cellKey] = false;
+          this.filledChunks[chunkKey] = false;
+          this.scene.remove(this.meshes[cellKey]);
+          delete this.meshes[cellKey];
+        }
+      });
+    }
   }
 
-  generateChunks(position: Vector3) {
-    const { chunkX, chunkZ } = this.getChunkCoordinates(position);
+  async generateChunks(chunkX: number, chunkY: number, chunkZ: number) {
+    const chunkKey = getCoordinatesKey(chunkX, 0, chunkZ);
 
-    if (
-      this.cells[
-        getCoordinatesKey(chunkX * CHUNK_WIDTH + 1, 0, chunkZ * CHUNK_WIDTH + 1)
-      ]
-    ) {
-      return;
+    if (this.filledChunks[chunkKey]) {
+      return null;
     }
-
-    console.log("GENERATING CHUNK", `${chunkX},0,${chunkZ}`);
-    console.time("DATA");
+    this.filledChunks[chunkKey] = true;
     for (let x = 0; x < CHUNK_WIDTH; x++) {
       for (let z = 0; z < CHUNK_WIDTH; z++) {
         const cellX = chunkX * CHUNK_WIDTH + x;
+        const cellY = 0;
         const cellZ = chunkZ * CHUNK_WIDTH + z;
-        this.fillData(cellX, 0, cellZ);
-      }
-    }
-    console.timeEnd("DATA");
-    console.time("MESH");
-    for (let x = 0; x < CHUNK_WIDTH; x++) {
-      for (let z = 0; z < CHUNK_WIDTH; z++) {
-        this.addMeshToScene(
+        await this.fillData(cellX, 0, cellZ);
+        await this.addMeshToScene(
           chunkX * CHUNK_WIDTH * CELL_WIDTH + x * CELL_WIDTH,
           0,
           chunkZ * CHUNK_WIDTH * CELL_WIDTH + z * CELL_WIDTH
         );
       }
     }
-    console.timeEnd("MESH");
   }
 
   getMeshesAround(position: Vector3) {
@@ -185,14 +172,6 @@ export class VoxelWorld {
       if (mesh) {
         return mesh;
       }
-
-      // this.fillData(cellX + offsetX, cellY + offsetY, cellZ + offsetZ);
-      // return this.addMeshToScene(
-      //   this.scene,
-      //   (cellX + offsetX) * CELL_WIDTH,
-      //   (cellY + offsetY) * CELL_HEIGHT,
-      //   (cellZ + offsetZ) * CELL_WIDTH
-      // );
     };
 
     const GENERATED_CELLS_RADIUS = 1;
@@ -267,21 +246,30 @@ export class VoxelWorld {
     return meshes.filter(Boolean) as Array<Mesh>;
   }
 
+  filledMeshes: { [k: string]: boolean } = {};
+
   async addMeshToScene(x: number, y: number, z: number) {
     const cellX = Math.floor(x / CELL_WIDTH);
     const cellY = Math.floor(y / CELL_HEIGHT);
     const cellZ = Math.floor(z / CELL_WIDTH);
+    const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
 
-    if (this.currentMesh === `${cellX},${cellY},${cellZ}`) {
-      return this.meshes[`${cellX},${cellY},${cellZ}`];
+    if (this.filledMeshes[cellKey]) {
+      return;
     }
-    this.currentMesh = `${cellX},${cellY},${cellZ}`;
+    this.filledMeshes[cellKey] = true;
 
-    const {
-      positions,
-      normals,
-      indices
-    } = await this.generateGeometryDataForCell(cellX, cellY, cellZ);
+    const geometryData = await this.generateGeometryDataForCell(
+      cellX,
+      cellY,
+      cellZ
+    );
+
+    if (!geometryData) {
+      return null;
+    }
+
+    const { positions, normals, indices } = geometryData;
 
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
@@ -308,7 +296,6 @@ export class VoxelWorld {
     mesh.position.z = cellZ * CELL_WIDTH;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
     this.meshes[cellKey] = mesh;
 
     this.scene.add(mesh);
