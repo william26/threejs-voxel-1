@@ -5,7 +5,7 @@ window.THREE = THREE;
 
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
-import { Color, DirectionalLight, CameraHelper } from "three";
+import { Color, DirectionalLight, CameraHelper, Fog } from "three";
 import { getChunkCoordinates, getKeyCoordinates } from "./lsdfs";
 
 const canvas = document.createElement("canvas");
@@ -51,8 +51,8 @@ document.addEventListener("pointerlockchange", e => {
 });
 
 const scene = new THREE.Scene();
-// scene.fog = new Fog(0xffffff, 0.1, 32);
-scene.background = new Color(0xffffff);
+scene.fog = new Fog(0x000000, 0.1, 128);
+scene.background = new Color(0x000000);
 
 function addLight() {
   const light = new DirectionalLight(0xffffff, 0.9);
@@ -109,11 +109,15 @@ function render() {
     }
   });
 
-  for (let x = 0; x < 3; x++) {
-    for (let z = 0; z < 3; z++) {
-      world.generateChunks(chunkX + x - 1, 0, chunkZ + z - 1);
+  async function generate() {
+    for (let x = 0; x < 3; x++) {
+      for (let z = 0; z < 3; z++) {
+        await world.generateChunk(chunkX + x - 1, 0, chunkZ + z - 1);
+      }
     }
   }
+
+  generate();
 
   if (player) {
     player.update({

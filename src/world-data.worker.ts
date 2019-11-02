@@ -2,16 +2,20 @@ import { CELL_HEIGHT, CELL_WIDTH } from "./world-constants";
 
 const ctx: Worker = self as any;
 import * as noise from "./noise";
+import { computeVoxelOffset } from "./lsdfs";
+
+function setVoxel(cell: Uint8Array, x: number, y: number, z: number, v: 1 | 0) {
+  const voxelOffset = computeVoxelOffset(x, y, z);
+  cell[voxelOffset] = v;
+}
 
 ctx.addEventListener("message", function(e) {
-  const [cellX, cellY, cellZ] = e.data as [number, number, number];
-
-  const voxelsToSet: Array<{
-    x: number;
-    y: number;
-    z: number;
-    type: number;
-  }> = [];
+  const [cellX, cellY, cellZ, cell] = e.data as [
+    number,
+    number,
+    number,
+    Uint8Array
+  ];
 
   for (let y = 0; y < CELL_HEIGHT; y++) {
     const yWorld = y + cellY * CELL_HEIGHT;
@@ -40,16 +44,11 @@ ctx.addEventListener("message", function(e) {
           // (1 / (yWorld * yWorld + 1)) * density3 < 0 &&
           yWorld < baseHeight + roughness + roughness2 + roughness3
         ) {
-          voxelsToSet.push({
-            x: xWorld,
-            y: yWorld,
-            z: zWorld,
-            type: 1
-          });
+          setVoxel(cell, xWorld, yWorld, zWorld, 1);
         }
       }
     }
   }
 
-  ctx.postMessage(voxelsToSet);
+  ctx.postMessage(cell);
 });

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Vector3, Mesh, MeshLambertMaterial, Scene } from "three";
 import GeometryWorker from "worker-loader!./geometry.worker";
 import DataWorker from "worker-loader!./world-data.worker";
+import localforage from "localforage";
 
 import * as noise from "./noise";
 noise.seed(0.1);
@@ -63,56 +64,9 @@ export class VoxelWorld {
     cell[voxelOffset] = v;
   }
 
-  filledData: { [k: string]: boolean } = {};
-
-  fillData(cellX: number, cellY: number, cellZ: number) {
-    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
-    if (this.filledData[cellKey]) {
-      return Promise.resolve();
-    }
-    this.filledData[cellKey] = true;
-    return new Promise(resolve => {
-      const worker = new DataWorker();
-      worker.onmessage = e => {
-        const voxelsToSet = e.data;
-        for (let voxelToSet of voxelsToSet) {
-          this.setVoxel(
-            voxelToSet.x,
-            voxelToSet.y,
-            voxelToSet.z,
-            voxelToSet.type
-          );
-        }
-        resolve();
-      };
-      worker.postMessage([cellX, cellY, cellZ]);
-    });
-  }
-
-  filledGeometry: { [k: string]: boolean } = {};
-
-  generateGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
-    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
-    if (this.filledGeometry[cellKey]) {
-      return Promise.resolve(null);
-    }
-    this.filledGeometry[cellKey] = true;
-    return new Promise<{
-      positions: any;
-      normals: any;
-      indices: any;
-    }>(resolve => {
-      const worker = new GeometryWorker();
-      worker.postMessage([this.cells, cellX, cellY, cellZ]);
-      worker.onmessage = (e: any) => {
-        resolve(e.data as WorldMeshGeometryData);
-      };
-    });
-  }
-
   filledChunks: { [k: string]: boolean } = {};
 
-  clearChunk(chunkX: number, chunkY: number, chunkZ: number) {
+  async clearChunk(chunkX: number, chunkY: number, chunkZ: number) {
     const chunkKey = getCoordinatesKey(chunkX, chunkY, chunkZ);
     if (this.filledChunks[chunkKey]) {
       const cellMeshes = Object.keys(this.meshes);
@@ -136,19 +90,22 @@ export class VoxelWorld {
     }
   }
 
-  async generateChunks(chunkX: number, chunkY: number, chunkZ: number) {
+  async generateChunk(chunkX: number, chunkY: number, chunkZ: number) {
     const chunkKey = getCoordinatesKey(chunkX, 0, chunkZ);
 
     if (this.filledChunks[chunkKey]) {
       return null;
     }
     this.filledChunks[chunkKey] = true;
+
+    console.log("GENERATING CHUNK", chunkKey);
+
     for (let x = 0; x < CHUNK_WIDTH; x++) {
       for (let z = 0; z < CHUNK_WIDTH; z++) {
         const cellX = chunkX * CHUNK_WIDTH + x;
         const cellY = 0;
         const cellZ = chunkZ * CHUNK_WIDTH + z;
-        await this.fillData(cellX, 0, cellZ);
+        await this.fillData(cellX, cellY, cellZ);
         await this.addMeshToScene(
           chunkX * CHUNK_WIDTH * CELL_WIDTH + x * CELL_WIDTH,
           0,
@@ -156,6 +113,138 @@ export class VoxelWorld {
         );
       }
     }
+  }
+
+  filledData: { [k: string]: boolean } = {};
+
+  async fillData(cellX: number, cellY: number, cellZ: number) {
+    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
+    if (this.filledData[cellKey]) {
+      return Promise.resolve();
+    }
+    this.filledData[cellKey] = true;
+
+    const savedData = await localforage.getItem<Uint8Array>(
+      `world-data:${cellKey}`
+    );
+    if (savedData) {
+      this.cells[cellKey] = savedData;
+    }
+
+    return new Promise(resolve => {
+      const worker = new DataWorker();
+      worker.onmessage = async e => {
+        this.cells[cellKey] = e.data;
+        await localforage.setItem<Uint8Array>(`world-data:${cellKey}`, e.data);
+        resolve();
+        worker.terminate();
+      };
+      // Sending cell & its coordinates to worker
+      worker.postMessage([
+        cellX,
+        cellY,
+        cellZ,
+        this.cells[cellKey] ||
+          new Uint8Array(CELL_WIDTH * CELL_WIDTH * CELL_HEIGHT)
+      ]);
+    });
+  }
+
+  filledMeshes: { [k: string]: boolean } = {};
+
+  async addMeshToScene(x: number, y: number, z: number) {
+    const cellX = Math.floor(x / CELL_WIDTH);
+    const cellY = Math.floor(y / CELL_HEIGHT);
+    const cellZ = Math.floor(z / CELL_WIDTH);
+    const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
+
+    if (this.filledMeshes[cellKey]) {
+      return;
+    }
+    this.filledMeshes[cellKey] = true;
+
+    const geometryData = await this.generateGeometryDataForCell(
+      cellX,
+      cellY,
+      cellZ
+    );
+
+    if (!geometryData) {
+      return null;
+    }
+
+    const { positions, normals, indices } = geometryData;
+
+    const geometry = new THREE.BufferGeometry();
+    const material = new MeshLambertMaterial({
+      color: 0xffffff - Math.random() * 0xffffff
+    });
+
+    const positionNumComponents = 3;
+    const normalNumComponents = 3;
+    geometry.addAttribute(
+      "position",
+      new THREE.BufferAttribute(
+        new Float32Array(positions),
+        positionNumComponents
+      )
+    );
+    geometry.addAttribute(
+      "normal",
+      new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents)
+    );
+    geometry.setIndex(indices);
+    const mesh = new Mesh(geometry, material);
+    mesh.position.x = cellX * CELL_WIDTH;
+    mesh.position.y = cellY * CELL_HEIGHT;
+    mesh.position.z = cellZ * CELL_WIDTH;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    this.meshes[cellKey] = mesh;
+
+    this.scene.add(mesh);
+
+    // await localforage.setItem<Mesh>(`world-mesh:${cellKey}`, mesh);
+
+    return mesh;
+  }
+
+  filledGeometry: { [k: string]: boolean } = {};
+
+  async generateGeometryDataForCell(
+    cellX: number,
+    cellY: number,
+    cellZ: number
+  ) {
+    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
+    if (this.filledGeometry[cellKey]) {
+      return Promise.resolve(null);
+    }
+    this.filledGeometry[cellKey] = true;
+
+    const savedGeometry = await localforage.getItem<WorldMeshGeometryData>(
+      `world-geometry:${cellKey}`
+    );
+    if (savedGeometry) {
+      return savedGeometry;
+    }
+
+    return new Promise<{
+      positions: any;
+      normals: any;
+      indices: any;
+    }>(resolve => {
+      const worker = new GeometryWorker();
+      worker.postMessage([this.cells, cellX, cellY, cellZ]);
+      worker.onmessage = async (e: any) => {
+        await localforage.setItem<WorldMeshGeometryData>(
+          `world-geometry:${cellKey}`,
+          e.data as WorldMeshGeometryData
+        );
+        resolve(e.data as WorldMeshGeometryData);
+        worker.terminate();
+      };
+    });
   }
 
   getMeshesAround(position: Vector3) {
@@ -244,63 +333,6 @@ export class VoxelWorld {
     }
 
     return meshes.filter(Boolean) as Array<Mesh>;
-  }
-
-  filledMeshes: { [k: string]: boolean } = {};
-
-  async addMeshToScene(x: number, y: number, z: number) {
-    const cellX = Math.floor(x / CELL_WIDTH);
-    const cellY = Math.floor(y / CELL_HEIGHT);
-    const cellZ = Math.floor(z / CELL_WIDTH);
-    const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
-
-    if (this.filledMeshes[cellKey]) {
-      return;
-    }
-    this.filledMeshes[cellKey] = true;
-
-    const geometryData = await this.generateGeometryDataForCell(
-      cellX,
-      cellY,
-      cellZ
-    );
-
-    if (!geometryData) {
-      return null;
-    }
-
-    const { positions, normals, indices } = geometryData;
-
-    const geometry = new THREE.BufferGeometry();
-    const material = new MeshLambertMaterial({
-      color: 0xffffff - Math.random() * 0xffffff
-    });
-
-    const positionNumComponents = 3;
-    const normalNumComponents = 3;
-    geometry.addAttribute(
-      "position",
-      new THREE.BufferAttribute(
-        new Float32Array(positions),
-        positionNumComponents
-      )
-    );
-    geometry.addAttribute(
-      "normal",
-      new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents)
-    );
-    geometry.setIndex(indices);
-    const mesh = new Mesh(geometry, material);
-    mesh.position.x = cellX * CELL_WIDTH;
-    mesh.position.y = cellY * CELL_HEIGHT;
-    mesh.position.z = cellZ * CELL_WIDTH;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    this.meshes[cellKey] = mesh;
-
-    this.scene.add(mesh);
-
-    return mesh;
   }
 }
 
