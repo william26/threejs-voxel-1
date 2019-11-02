@@ -5,7 +5,7 @@ window.THREE = THREE;
 
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
-import { Color, DirectionalLight, CameraHelper, Fog } from "three";
+import { Color, DirectionalLight, CameraHelper, Fog, PointLight } from "three";
 import { getChunkCoordinates, getKeyCoordinates } from "./lsdfs";
 
 const canvas = document.createElement("canvas");
@@ -54,29 +54,26 @@ const scene = new THREE.Scene();
 scene.fog = new Fog(0x000000, 0.1, 128);
 scene.background = new Color(0x000000);
 
-function addLight() {
-  const light = new DirectionalLight(0xffffff, 0.9);
-  light.position.set(255, 255, 0);
-  light.target.position.set(0, 0, 0);
-  light.castShadow = true;
-  light.shadow.mapSize.width = 512; // default
-  light.shadow.mapSize.height = 512; // default
-  light.shadow.camera.near = 0.5; // default
-  light.shadow.camera.far = 500; // default
-  const d = 1000;
+const directionalLight = new DirectionalLight(0xffffff, 1);
+directionalLight.position.set(255, 255, 0);
+directionalLight.target.position.set(0, 0, 0);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 512; // default
+directionalLight.shadow.mapSize.height = 512; // default
+directionalLight.shadow.camera.near = 0.5; // default
+directionalLight.shadow.camera.far = 500; // default
+const d = 1000;
 
-  light.shadow.camera.left = -d;
-  light.shadow.camera.right = d;
-  light.shadow.camera.top = d;
-  light.shadow.camera.bottom = -d;
+directionalLight.shadow.camera.left = -d;
+directionalLight.shadow.camera.right = d;
+directionalLight.shadow.camera.top = d;
+directionalLight.shadow.camera.bottom = -d;
 
-  scene.add(new CameraHelper(light.shadow.camera));
-  scene.add(light);
-}
-addLight();
+// scene.add(new CameraHelper(directionalLight.shadow.camera));
+// scene.add(directionalLight);
 
-const light = new THREE.AmbientLight(0xffffff, 0.1);
-scene.add(light);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0);
+// scene.add(ambientLight);
 
 const world = new VoxelWorld(scene);
 
@@ -89,6 +86,14 @@ export type UpdateOptions = {
   world: VoxelWorld;
   scene: THREE.Scene;
 };
+
+const pointLight = new PointLight(0xffffff, 1);
+pointLight.castShadow = true;
+var sphereSize = 1;
+var pointLightHelper = new THREE.PointLightHelper(pointLight, sphereSize);
+pointLight.position.copy(camera.position);
+scene.add(pointLightHelper);
+scene.add(pointLight);
 
 const cameraSpeed = new THREE.Vector3();
 function render() {
@@ -126,6 +131,8 @@ function render() {
       scene
     });
   }
+
+  pointLight.position.copy(camera.position);
 
   camera.position.add(cameraSpeed);
   renderer.render(scene, camera);
