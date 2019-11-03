@@ -3,6 +3,11 @@ declare module "*.obj" {
   export default objPath;
 }
 
+declare module "*.png" {
+  const pngPath: string;
+  export default pngPath;
+}
+
 declare module "worker-loader!*" {
   class WebpackWorker extends Worker {
     constructor();

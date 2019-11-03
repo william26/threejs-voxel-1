@@ -4,7 +4,13 @@ const ctx: Worker = self as any;
 import * as noise from "./noise";
 import { computeVoxelOffset } from "./lsdfs";
 
-function setVoxel(cell: Uint8Array, x: number, y: number, z: number, v: 1 | 0) {
+function setVoxel(
+  cell: Uint8Array,
+  x: number,
+  y: number,
+  z: number,
+  v: number
+) {
   const voxelOffset = computeVoxelOffset(x, y, z);
   cell[voxelOffset] = v;
 }
@@ -39,12 +45,19 @@ ctx.addEventListener("message", function(e) {
         const roughness3 =
           (noise.simplex2(xWorld / 100, zWorld / 100) * CELL_HEIGHT) / 15;
         const density1 = noise.simplex3(xWorld / 50, yWorld / 16, zWorld / 50);
+        const terrainHeight = baseHeight + roughness + roughness2 + roughness3;
         if (
           (density1 > -0.2 || yWorld > 80) &&
           // (1 / (yWorld * yWorld + 1)) * density3 < 0 &&
           yWorld < baseHeight + roughness + roughness2 + roughness3
         ) {
-          setVoxel(cell, xWorld, yWorld, zWorld, 1);
+          const voxelType =
+            yWorld > terrainHeight - 1
+              ? 14
+              : yWorld > terrainHeight - 5
+              ? 15
+              : 4;
+          setVoxel(cell, xWorld, yWorld, zWorld, voxelType);
         }
       }
     }

@@ -8,6 +8,8 @@ import { Player } from "./Player";
 import { Color, DirectionalLight, CameraHelper, Fog, PointLight } from "three";
 import { getChunkCoordinates, getKeyCoordinates } from "./lsdfs";
 
+import voxelImage from "./assets/flourish-cc-by-nc-sa.png";
+
 const canvas = document.createElement("canvas");
 
 const root = document.getElementById("root");
@@ -24,9 +26,11 @@ const aspect = window.innerWidth / window.innerHeight; // the canvas default
 const near = 0.1;
 const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-camera.position.x = 0;
-camera.position.y = 140;
-camera.position.z = 0;
+// -229.47, y: 11.75, z: -102.96
+
+camera.position.x = -28.89;
+camera.position.y = 119;
+camera.position.z = 35.41;
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 function rotateFromMouseMovement(e: MouseEvent) {
@@ -75,7 +79,12 @@ directionalLight.shadow.camera.bottom = -d;
 const ambientLight = new THREE.AmbientLight(0xffffff, 0);
 // scene.add(ambientLight);
 
-const world = new VoxelWorld(scene);
+const loader = new THREE.TextureLoader();
+const texture = loader.load(voxelImage, render);
+texture.magFilter = THREE.NearestFilter;
+texture.minFilter = THREE.NearestFilter;
+
+const world = new VoxelWorld(scene, texture);
 
 let player: Player | undefined;
 
@@ -87,12 +96,12 @@ export type UpdateOptions = {
   scene: THREE.Scene;
 };
 
-const pointLight = new PointLight(0xffffff, 1);
+const pointLight = new PointLight(0xffffff, 1, 50, 2);
 pointLight.castShadow = true;
 var sphereSize = 1;
-var pointLightHelper = new THREE.PointLightHelper(pointLight, sphereSize);
-pointLight.position.copy(camera.position);
-scene.add(pointLightHelper);
+// var pointLightHelper = new THREE.PointLightHelper(pointLight, sphereSize);
+// pointLight.position.copy(camera.position);
+// scene.add(pointLightHelper);
 scene.add(pointLight);
 
 const cameraSpeed = new THREE.Vector3();

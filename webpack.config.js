@@ -15,14 +15,15 @@ module.exports = (env = {}) => ({
         exclude: `${__dirname}/node_modules`
       },
       {
-        test: /.*\.obj$/,
+        test: /.*\.(obj|png)$/,
         use: {
           loader: "file-loader",
           options: {
             name: "[name].[hash].[ext]"
           }
         }
-      }
+      },
+      {}
     ]
   },
   plugins: [

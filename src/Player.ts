@@ -7,6 +7,7 @@ import {
   setCurrentChunk
 } from "./hud/playerReducer";
 import { getCellKeyForPosition, getChunkKeyForPosition } from "./lsdfs";
+import localforage from "localforage";
 
 export class Player {
   camera: Camera;
@@ -26,6 +27,13 @@ export class Player {
     light.shadow.mapSize.height = 512;
     // scene.add(light);
     this.light = light;
+
+    // Load player position from index db
+    localforage.getItem<Vector3>(`player-position`).then(position => {
+      if (position) {
+        camera.position.copy(position);
+      }
+    });
   }
 
   public update(updateOptions: UpdateOptions) {
@@ -212,6 +220,15 @@ export class Player {
     );
 
     this.previousKeys = { ...KEYS };
-    this.light.position.copy(camera.position);
+    this.light.position.copy(
+      camera.position.clone().setX(camera.position.x - 3)
+    );
+    i++;
+
+    // Save player position for later load (see constructor)
+    if (i % 100 === 0) {
+      localforage.setItem<Vector3>(`player-position`, camera.position);
+    }
   }
 }
+let i = 0;

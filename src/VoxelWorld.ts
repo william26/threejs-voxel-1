@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Vector3, Mesh, MeshLambertMaterial, Scene } from "three";
+import { Vector3, Mesh, MeshLambertMaterial, Scene, Texture } from "three";
 import GeometryWorker from "worker-loader!./geometry.worker";
 import DataWorker from "worker-loader!./world-data.worker";
 import localforage from "localforage";
@@ -21,16 +21,18 @@ type WorldMeshGeometryData = {
   positions: any;
   normals: any;
   indices: any;
+  uvs: any;
 };
 
 export class VoxelWorld {
   static faces: Array<{
     dir: [number, number, number];
+    uvRow: number;
     corners: [
-      [number, number, number],
-      [number, number, number],
-      [number, number, number],
-      [number, number, number]
+      { pos: [number, number, number]; uv: [number, number] },
+      { pos: [number, number, number]; uv: [number, number] },
+      { pos: [number, number, number]; uv: [number, number] },
+      { pos: [number, number, number]; uv: [number, number] }
     ];
   }>;
 
@@ -39,11 +41,13 @@ export class VoxelWorld {
   } = {};
   scene: Scene;
   meshes: { [k: string]: Mesh };
+  texture: Texture;
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, texture: Texture) {
     this.cells = {};
     this.meshes = {};
     this.scene = scene;
+    this.texture = texture;
   }
 
   getCellWorldCenterForPosition(position: Vector3) {
@@ -171,15 +175,19 @@ export class VoxelWorld {
       return null;
     }
 
-    const { positions, normals, indices } = geometryData;
+    const { positions, normals, indices, uvs } = geometryData;
 
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
-      color: 0xffffff
+      color: 0xffffff,
+      map: this.texture,
+      alphaTest: 0.1,
+      transparent: true
     });
 
     const positionNumComponents = 3;
     const normalNumComponents = 3;
+    const uvNumComponents = 2;
     geometry.addAttribute(
       "position",
       new THREE.BufferAttribute(
@@ -190,6 +198,10 @@ export class VoxelWorld {
     geometry.addAttribute(
       "normal",
       new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents)
+    );
+    geometry.addAttribute(
+      "uv",
+      new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents)
     );
     geometry.setIndex(indices);
     const mesh = new Mesh(geometry, material);
@@ -227,11 +239,7 @@ export class VoxelWorld {
       return savedGeometry;
     }
 
-    return new Promise<{
-      positions: any;
-      normals: any;
-      indices: any;
-    }>(resolve => {
+    return new Promise<WorldMeshGeometryData>(resolve => {
       const worker = new GeometryWorker();
       worker.postMessage([this.cells, cellX, cellY, cellZ]);
       worker.onmessage = async (e: any) => {
@@ -336,68 +344,75 @@ export class VoxelWorld {
 
 VoxelWorld.faces = [
   {
+    // left
+    uvRow: 0,
     dir: [-1, 0, 0],
     corners: [
       // points
-      [0, 1, 0],
-      [0, 0, 0],
-      [0, 1, 1],
-      [0, 0, 1]
+      { pos: [0, 1, 0], uv: [0, 1] },
+      { pos: [0, 0, 0], uv: [0, 0] },
+      { pos: [0, 1, 1], uv: [1, 1] },
+      { pos: [0, 0, 1], uv: [1, 0] }
     ]
   },
   {
     // right
+    uvRow: 0,
     dir: [1, 0, 0],
     corners: [
       // points
-      [1, 1, 1],
-      [1, 0, 1],
-      [1, 1, 0],
-      [1, 0, 0]
+      { pos: [1, 1, 1], uv: [0, 1] },
+      { pos: [1, 0, 1], uv: [0, 0] },
+      { pos: [1, 1, 0], uv: [1, 1] },
+      { pos: [1, 0, 0], uv: [1, 0] }
     ]
   },
   {
     // bottom
+    uvRow: 1,
     dir: [0, -1, 0],
     corners: [
       // points
-      [1, 0, 1],
-      [0, 0, 1],
-      [1, 0, 0],
-      [0, 0, 0]
+      { pos: [1, 0, 1], uv: [0, 1] },
+      { pos: [0, 0, 1], uv: [0, 0] },
+      { pos: [1, 0, 0], uv: [1, 1] },
+      { pos: [0, 0, 0], uv: [1, 0] }
     ]
   },
   {
     // top
+    uvRow: 2,
     dir: [0, 1, 0],
     corners: [
       // points
-      [0, 1, 1],
-      [1, 1, 1],
-      [0, 1, 0],
-      [1, 1, 0]
+      { pos: [0, 1, 1], uv: [0, 1] },
+      { pos: [1, 1, 1], uv: [0, 0] },
+      { pos: [0, 1, 0], uv: [1, 1] },
+      { pos: [1, 1, 0], uv: [1, 0] }
     ]
   },
   {
     // back
+    uvRow: 0,
     dir: [0, 0, -1],
     corners: [
       // points
-      [1, 0, 0],
-      [0, 0, 0],
-      [1, 1, 0],
-      [0, 1, 0]
+      { pos: [1, 0, 0], uv: [0, 1] },
+      { pos: [0, 0, 0], uv: [0, 0] },
+      { pos: [1, 1, 0], uv: [1, 1] },
+      { pos: [0, 1, 0], uv: [1, 0] }
     ]
   },
   {
     // front
+    uvRow: 0,
     dir: [0, 0, 1],
     corners: [
       // points
-      [0, 0, 1],
-      [1, 0, 1],
-      [0, 1, 1],
-      [1, 1, 1]
+      { pos: [0, 0, 1], uv: [0, 1] },
+      { pos: [1, 0, 1], uv: [0, 0] },
+      { pos: [0, 1, 1], uv: [1, 1] },
+      { pos: [1, 1, 1], uv: [1, 0] }
     ]
   }
 ];
