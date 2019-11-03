@@ -98,8 +98,6 @@ export class VoxelWorld {
     }
     this.filledChunks[chunkKey] = true;
 
-    console.log("GENERATING CHUNK", chunkKey);
-
     for (let x = 0; x < CHUNK_WIDTH; x++) {
       for (let z = 0; z < CHUNK_WIDTH; z++) {
         const cellX = chunkX * CHUNK_WIDTH + x;
@@ -177,7 +175,7 @@ export class VoxelWorld {
 
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
-      color: 0xffffff - Math.random() * 0xffffff
+      color: 0xffffff
     });
 
     const positionNumComponents = 3;
