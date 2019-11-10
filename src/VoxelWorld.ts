@@ -68,61 +68,25 @@ export class VoxelWorld {
     cell[voxelOffset] = v;
   }
 
-  filledChunks: { [k: string]: boolean } = {};
+  preloadedCells: { [k: string]: boolean } = {};
+  async generateCell(cellX: number, cellY: number, cellZ: number) {
+    const cellKey = getCoordinatesKey(cellX, 0, cellZ);
 
-  async clearChunk(chunkX: number, chunkY: number, chunkZ: number) {
-    const chunkKey = getCoordinatesKey(chunkX, chunkY, chunkZ);
-    if (this.filledChunks[chunkKey]) {
-      const cellMeshes = Object.keys(this.meshes);
-      cellMeshes.forEach(cellKey => {
-        const { x: cellX, y: cellY, z: cellZ } = getKeyCoordinates(cellKey);
-
-        const cellChunkKey = getCoordinatesKey(
-          Math.floor(cellX / CHUNK_WIDTH),
-          Math.floor(cellY / CHUNK_WIDTH),
-          Math.floor(cellZ / CHUNK_WIDTH)
-        );
-
-        if (chunkKey === cellChunkKey) {
-          this.filledGeometry[cellKey] = false;
-          this.filledMeshes[cellKey] = false;
-          this.filledChunks[chunkKey] = false;
-          this.scene.remove(this.meshes[cellKey]);
-          delete this.meshes[cellKey];
-        }
-      });
-    }
-  }
-
-  async generateChunk(chunkX: number, chunkY: number, chunkZ: number) {
-    const chunkKey = getCoordinatesKey(chunkX, 0, chunkZ);
-
-    if (this.filledChunks[chunkKey]) {
+    if (this.preloadedCells[cellKey]) {
       return false;
     }
-    this.filledChunks[chunkKey] = true;
+    this.preloadedCells[cellKey] = true;
+    console.log("PRELOADING CELL", cellKey);
 
-    console.log("GENERATING CHUNK", chunkKey);
+    await this.fillData(cellX, cellY, cellZ);
+    await this.generateGeometryDataForCell(cellX, cellY, cellZ);
 
-    for (let x = 0; x < CHUNK_WIDTH; x++) {
-      for (let z = 0; z < CHUNK_WIDTH; z++) {
-        const cellX = chunkX * CHUNK_WIDTH + x;
-        const cellY = 0;
-        const cellZ = chunkZ * CHUNK_WIDTH + z;
-        await this.fillData(cellX, cellY, cellZ);
-        await this.addMeshToScene(
-          chunkX * CHUNK_WIDTH * CELL_WIDTH + x * CELL_WIDTH,
-          0,
-          chunkZ * CHUNK_WIDTH * CELL_WIDTH + z * CELL_WIDTH
-        );
-      }
-    }
+    console.log("PRELOADED CELL", cellKey);
 
     return true;
   }
 
   filledData: { [k: string]: boolean } = {};
-
   async fillData(cellX: number, cellY: number, cellZ: number) {
     const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
     if (this.filledData[cellKey]) {
@@ -155,26 +119,23 @@ export class VoxelWorld {
   }
 
   filledMeshes: { [k: string]: boolean } = {};
-
-  async addMeshToScene(x: number, y: number, z: number) {
-    const cellX = Math.floor(x / CELL_WIDTH);
-    const cellY = Math.floor(y / CELL_HEIGHT);
-    const cellZ = Math.floor(z / CELL_WIDTH);
-    const cellKey = getCellKeyForPosition(new Vector3(x, y, z));
+  async addCellMesh(cellX: number, cellY: number, cellZ: number) {
+    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
 
     if (this.filledMeshes[cellKey]) {
       return;
     }
     this.filledMeshes[cellKey] = true;
-    const geometryData = await this.generateGeometryDataForCell(
-      cellX,
-      cellY,
-      cellZ
-    );
+
+    const geometryData = await this.getGeometryDataForCell(cellX, cellY, cellZ);
 
     if (!geometryData) {
+      this.filledMeshes[cellKey] = false;
       return null;
     }
+
+    console.log("ADDING CELL MESH", cellKey);
+
     const { positions, normals, indices, uvs } = geometryData;
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
@@ -213,9 +174,13 @@ export class VoxelWorld {
 
     this.scene.add(mesh);
 
-    // await setItem<Mesh>(`world-mesh:${cellKey}`, mesh);
-
     return mesh;
+  }
+
+  removeCellMesh(cellKey: string) {
+    this.scene.remove(this.meshes[cellKey]);
+    delete this.meshes[cellKey];
+    delete this.filledMeshes[cellKey];
   }
 
   filledGeometry: { [k: string]: boolean } = {};
@@ -231,11 +196,11 @@ export class VoxelWorld {
     }
     this.filledGeometry[cellKey] = true;
 
-    console.time(`DATA${cellKey}`);
-    const savedGeometry = await getItem<WorldMeshGeometryData>(
-      `world-geometry:${cellKey}`
+    const savedGeometry = await this.getGeometryDataForCell(
+      cellX,
+      cellY,
+      cellZ
     );
-    console.timeEnd(`DATA${cellKey}`);
     if (savedGeometry) {
       return savedGeometry;
     }
@@ -252,6 +217,15 @@ export class VoxelWorld {
         worker.terminate();
       };
     });
+  }
+
+  async getGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
+    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
+    const bla = await getItem<WorldMeshGeometryData>(
+      `world-geometry:${cellKey}`
+    );
+
+    return bla;
   }
 
   getMeshesAround(position: Vector3) {

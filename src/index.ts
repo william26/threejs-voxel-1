@@ -11,7 +11,12 @@ window.THREE = THREE;
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
 import { Color, DirectionalLight, CameraHelper, Fog, PointLight } from "three";
-import { getChunkCoordinates, getKeyCoordinates } from "./lsdfs";
+import {
+  getChunkCoordinates,
+  getKeyCoordinates,
+  getCellCoordinates,
+  getCoordinatesKey
+} from "./lsdfs";
 
 import voxelImage from "./assets/flourish-cc-by-nc-sa.png";
 
@@ -116,27 +121,35 @@ async function render() {
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
   }
-  const { chunkX, chunkZ } = getChunkCoordinates(camera.position);
+  const { cellX, cellZ } = getCellCoordinates(camera.position);
 
-  Object.keys(world.filledChunks).forEach(filledChunkKey => {
-    const { x, y, z } = getKeyCoordinates(filledChunkKey);
-    if (Math.abs(chunkX - x) > 2 || Math.abs(chunkZ - z) > 2) {
-      world.clearChunk(x, y, z);
-    }
-  });
-
-  async function generate() {
-    for (let x = -1; x <= 1; x++) {
-      for (let z = -1; z <= 1; z++) {
-        const generated = world.generateChunk(chunkX + x, 0, chunkZ + z);
-        if (!generated) {
-          return;
-        }
-      }
+  // PRELOAD (= generate / retrieve from indexedDB) 81 cells (9x9)
+  // around the player & store in live memory for fast access
+  // clear cells from memory that aren't in that list
+  // Mostly async
+  for (let x = -2; x <= 2; x++) {
+    for (let z = -2; z <= 2; z++) {
+      world.generateCell(cellX + x, 0, cellZ + z);
     }
   }
 
-  generate();
+  // RENDER 9 cells around the player in scene
+  // remove cells in scene that aren't in list
+  const meshesToRender: { [k: string]: boolean } = {};
+  for (let x = -1; x <= 1; x++) {
+    for (let z = -1; z <= 1; z++) {
+      const cellKey = getCoordinatesKey(cellX + x, 0, cellZ + z);
+      meshesToRender[cellKey] = true;
+      world.addCellMesh(cellX + x, 0, cellZ + z);
+    }
+  }
+
+  // CLEAR cell meshes that shouldn't be rendered
+  Object.keys(world.filledMeshes).forEach(cellKey => {
+    if (!meshesToRender[cellKey]) {
+      world.removeCellMesh(cellKey);
+    }
+  });
 
   if (player) {
     player.update({
