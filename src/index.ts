@@ -6,17 +6,14 @@ var stats = new Stats();
 stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
 document.body.appendChild(stats.dom);
 
+window.data = {};
+
 window.THREE = THREE;
 
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
-import { Color, DirectionalLight, CameraHelper, Fog, PointLight } from "three";
-import {
-  getChunkCoordinates,
-  getKeyCoordinates,
-  getCellCoordinates,
-  getCoordinatesKey
-} from "./lsdfs";
+import { Color, DirectionalLight } from "three";
+import { getCellCoordinates, getCoordinatesKey } from "./lsdfs";
 
 import voxelImage from "./assets/flourish-cc-by-nc-sa.png";
 
@@ -36,6 +33,7 @@ const aspect = window.innerWidth / window.innerHeight; // the canvas default
 const near = 0.1;
 const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+camera.frustumCulled = true;
 
 camera.position.x = -28.89;
 camera.position.y = 119;
@@ -104,14 +102,7 @@ export type UpdateOptions = {
   scene: THREE.Scene;
 };
 
-const pointLight = new PointLight(0xffffff, 1, 50, 2);
-pointLight.castShadow = true;
-// var pointLightHelper = new THREE.PointLightHelper(pointLight, sphereSize);
-// pointLight.position.copy(camera.position);
-// scene.add(pointLightHelper);
-scene.add(pointLight);
-
-const cameraSpeed = new THREE.Vector3();
+const GENERATION_RADIUS = 2;
 async function render() {
   if (
     canvas.width !== window.innerWidth ||
@@ -127,30 +118,40 @@ async function render() {
   // around the player & store in live memory for fast access
   // clear cells from memory that aren't in that list
   // Mostly async
-  for (let x = -2; x <= 2; x++) {
-    for (let z = -2; z <= 2; z++) {
+  const cellGenerationStart = window.performance.now();
+  for (let x = -GENERATION_RADIUS; x <= GENERATION_RADIUS; x++) {
+    for (let z = -GENERATION_RADIUS; z <= GENERATION_RADIUS; z++) {
       world.generateCell(cellX + x, 0, cellZ + z);
     }
   }
+  window.data.cellGenerationTime =
+    window.performance.now() - cellGenerationStart;
 
   // RENDER 9 cells around the player in scene
   // remove cells in scene that aren't in list
+  const cellAdditionStart = window.performance.now();
   const meshesToRender: { [k: string]: boolean } = {};
-  for (let x = -1; x <= 1; x++) {
-    for (let z = -1; z <= 1; z++) {
+  for (let x = -GENERATION_RADIUS; x <= GENERATION_RADIUS; x++) {
+    for (let z = -GENERATION_RADIUS; z <= GENERATION_RADIUS; z++) {
       const cellKey = getCoordinatesKey(cellX + x, 0, cellZ + z);
       meshesToRender[cellKey] = true;
+
       world.addCellMesh(cellX + x, 0, cellZ + z);
     }
   }
+  window.data.cellAdditionTime = window.performance.now() - cellAdditionStart;
+  window.data.meshesToRender = meshesToRender;
 
   // CLEAR cell meshes that shouldn't be rendered
-  Object.keys(world.filledMeshes).forEach(cellKey => {
+  const cellRemovalStart = window.performance.now();
+  Object.keys({ ...world.filledMeshes }).forEach(cellKey => {
     if (!meshesToRender[cellKey]) {
       world.removeCellMesh(cellKey);
     }
   });
+  window.data.cellRemovalTime = window.performance.now() - cellRemovalStart;
 
+  const playerUpdateStart = window.performance.now();
   if (player) {
     player.update({
       KEYS,
@@ -158,10 +159,8 @@ async function render() {
       scene
     });
   }
+  window.data.playerUpdateTime = window.performance.now() - playerUpdateStart;
 
-  pointLight.position.copy(camera.position);
-
-  camera.position.add(cameraSpeed);
   renderer.render(scene, camera);
 }
 

@@ -57,7 +57,6 @@ export class Player {
 
     if (KEYS.v && !this.previousKeys.v) {
       this.state = this.state !== "flying" ? "flying" : "walking";
-      console.log("HELO", this.state);
     }
 
     const walkingSpeed = this.stateModifier === "running" ? 0.25 : 0.1;
@@ -171,7 +170,7 @@ export class Player {
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
     const rayCasterDUp = new Raycaster(
       camera.position
@@ -181,7 +180,7 @@ export class Player {
         .setZ(camera.position.z + 0.25),
       this.speedVector.clone().normalize(),
       0,
-      1000
+      1
     );
 
     [

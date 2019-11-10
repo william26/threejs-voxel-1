@@ -20,4 +20,5 @@ interface Window {
   store: {
     dispatch: (action: { type: string; payload: any }) => void;
   };
+  data: any;
 }

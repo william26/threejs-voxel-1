@@ -76,12 +76,9 @@ export class VoxelWorld {
       return false;
     }
     this.preloadedCells[cellKey] = true;
-    console.log("PRELOADING CELL", cellKey);
 
     await this.fillData(cellX, cellY, cellZ);
     await this.generateGeometryDataForCell(cellX, cellY, cellZ);
-
-    console.log("PRELOADED CELL", cellKey);
 
     return true;
   }
@@ -120,6 +117,7 @@ export class VoxelWorld {
 
   filledMeshes: { [k: string]: boolean } = {};
   async addCellMesh(cellX: number, cellY: number, cellZ: number) {
+    window.data.filledMeshes = this.filledMeshes;
     const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
 
     if (this.filledMeshes[cellKey]) {
@@ -133,8 +131,6 @@ export class VoxelWorld {
       this.filledMeshes[cellKey] = false;
       return null;
     }
-
-    console.log("ADDING CELL MESH", cellKey);
 
     const { positions, normals, indices, uvs } = geometryData;
     const geometry = new THREE.BufferGeometry();
@@ -244,74 +240,74 @@ export class VoxelWorld {
       }
     };
 
-    const GENERATED_CELLS_RADIUS = 1;
-    for (let x = 0; x <= GENERATED_CELLS_RADIUS * 2; x++) {
-      for (let y = 0; y <= GENERATED_CELLS_RADIUS * 2; y++) {
-        for (let z = 0; z <= GENERATED_CELLS_RADIUS * 2; z++) {
-          getMesh(
-            x - GENERATED_CELLS_RADIUS,
-            y - GENERATED_CELLS_RADIUS,
-            z - GENERATED_CELLS_RADIUS
-          );
-        }
-      }
-    }
+    // const GENERATED_CELLS_RADIUS = 1;
+    // for (let x = -1; x <= 1; x++) {
+    //   for (let y = -1; y <= 1; y++) {
+    //     for (let z = -1; z <= 1; z++) {
+    //       getMesh(
+    //         x + GENERATED_CELLS_RADIUS,
+    //         y + GENERATED_CELLS_RADIUS,
+    //         z + GENERATED_CELLS_RADIUS
+    //       );
+    //     }
+    //   }
+    // }
 
     const center = [getMesh(0, -1, 0), getMesh(0, 0, 0), getMesh(0, 1, 0)];
-    const left = [getMesh(-1, -10, 0), getMesh(-1, 0, 0), getMesh(-1, 1, 0)];
-    const front = [getMesh(0, -1, 1), getMesh(0, 0, 1), getMesh(0, 1, 1)];
-    const frontLeft = [
-      getMesh(-1, -10, 1),
-      getMesh(-1, 0, 1),
-      getMesh(-1, 1, 1)
-    ];
-    const back = [getMesh(0, -1, -1), getMesh(0, 0, -1), getMesh(0, 1, -1)];
-    const backLeft = [
-      getMesh(-1, -10, -1),
-      getMesh(-1, 0, -1),
-      getMesh(-1, 1, -1)
-    ];
-    const right = [getMesh(1, -1, 0), getMesh(1, 0, 0), getMesh(1, 1, 0)];
-    const frontRight = [getMesh(1, -1, 1), getMesh(1, 0, 1), getMesh(1, 1, 1)];
-    const backRight = [
-      getMesh(1, -1, -1),
-      getMesh(1, 0, -1),
-      getMesh(1, 1, -1)
-    ];
+    // const left = [getMesh(-1, -10, 0), getMesh(-1, 0, 0), getMesh(-1, 1, 0)];
+    // const front = [getMesh(0, -1, 1), getMesh(0, 0, 1), getMesh(0, 1, 1)];
+    // const frontLeft = [
+    //   getMesh(-1, -10, 1),
+    //   getMesh(-1, 0, 1),
+    //   getMesh(-1, 1, 1)
+    // ];
+    // const back = [getMesh(0, -1, -1), getMesh(0, 0, -1), getMesh(0, 1, -1)];
+    // const backLeft = [
+    //   getMesh(-1, -10, -1),
+    //   getMesh(-1, 0, -1),
+    //   getMesh(-1, 1, -1)
+    // ];
+    // const right = [getMesh(1, -1, 0), getMesh(1, 0, 0), getMesh(1, 1, 0)];
+    // const frontRight = [getMesh(1, -1, 1), getMesh(1, 0, 1), getMesh(1, 1, 1)];
+    // const backRight = [
+    //   getMesh(1, -1, -1),
+    //   getMesh(1, 0, -1),
+    //   getMesh(1, 1, -1)
+    // ];
 
     // center
     meshes = [...meshes, ...center];
 
-    if (positionFromCellCenter.x < 0) {
-      // left
-      meshes = [...meshes, ...left];
+    // if (positionFromCellCenter.x < 0) {
+    //   // left
+    //   meshes = [...meshes, ...left];
 
-      if (positionFromCellCenter.z < 0) {
-        // front
-        meshes = [...meshes, ...front];
-        // front left
-        meshes = [...meshes, ...frontLeft];
-      } else {
-        // back
-        meshes = [...meshes, ...back];
-        // back left
-        meshes = [...meshes, ...backLeft];
-      }
-    } else {
-      // right
-      meshes = [...meshes, ...right];
-      if (positionFromCellCenter.z < 0) {
-        // front
-        meshes = [...meshes, ...front];
-        // front right
-        meshes = [...meshes, ...frontRight];
-      } else {
-        // back
-        meshes = [...meshes, ...back];
-        // back right
-        meshes = [...meshes, ...backRight];
-      }
-    }
+    //   if (positionFromCellCenter.z < 0) {
+    //     // front
+    //     meshes = [...meshes, ...front];
+    //     // front left
+    //     meshes = [...meshes, ...frontLeft];
+    //   } else {
+    //     // back
+    //     meshes = [...meshes, ...back];
+    //     // back left
+    //     meshes = [...meshes, ...backLeft];
+    //   }
+    // } else {
+    //   // right
+    //   meshes = [...meshes, ...right];
+    //   if (positionFromCellCenter.z < 0) {
+    //     // front
+    //     meshes = [...meshes, ...front];
+    //     // front right
+    //     meshes = [...meshes, ...frontRight];
+    //   } else {
+    //     // back
+    //     meshes = [...meshes, ...back];
+    //     // back right
+    //     meshes = [...meshes, ...backRight];
+    //   }
+    // }
 
     return meshes.filter(Boolean) as Array<Mesh>;
   }
