@@ -12,10 +12,11 @@ window.THREE = THREE;
 
 import { VoxelWorld } from "./VoxelWorld";
 import { Player } from "./Player";
-import { Color, DirectionalLight } from "three";
+import { Color, DirectionalLight, Vector3 } from "three";
 import { getCellCoordinates, getCoordinatesKey } from "./lsdfs";
 
 import voxelImage from "./assets/flourish-cc-by-nc-sa.png";
+import localforage from "localforage";
 
 const canvas = document.createElement("canvas");
 
@@ -35,9 +36,9 @@ const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.frustumCulled = true;
 
-camera.position.x = -28.89;
+camera.position.x = 0;
 camera.position.y = 150;
-camera.position.z = 35.41;
+camera.position.z = 0;
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 function rotateFromMouseMovement(e: MouseEvent) {
@@ -48,12 +49,13 @@ function rotateFromMouseMovement(e: MouseEvent) {
   );
 }
 
-canvas.addEventListener("click", () => {
-  canvas.requestPointerLock();
-
-  canvas.addEventListener("mousemove", rotateFromMouseMovement);
-});
 let mouseCaptured = false;
+canvas.addEventListener("click", () => {
+  if (!mouseCaptured) {
+    canvas.requestPointerLock();
+    canvas.addEventListener("mousemove", rotateFromMouseMovement);
+  }
+});
 document.addEventListener("pointerlockchange", e => {
   if (mouseCaptured) {
     canvas.removeEventListener("mousemove", rotateFromMouseMovement);
@@ -197,6 +199,22 @@ document.addEventListener("keyup", e => {
   KEYS[e.key.toLowerCase()] = false;
 });
 
-loop();
-
+localforage.getItem<Vector3>(`player-position`).then(position => {
+  loop();
+  if (position) {
+    camera.position.copy(position);
+  }
+});
 player = new Player(camera, world);
+
+const reticle = new THREE.Mesh(
+  new THREE.RingBufferGeometry(2, 5, 32),
+  new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide
+  })
+);
+reticle.position.z = -3;
+
+camera.add(reticle);

@@ -25,7 +25,7 @@ let arrowHelper: THREE.Object3D | null = null;
 export class Player {
   camera: Camera;
   speedVector = new Vector3(0, 0, 0);
-  state: "walking" | "jumping" | "flying" = "jumping";
+  state: "walking" | "jumping" | "flying" = "flying";
   stateModifier: "running" | "normal" = "normal";
   previousKeys: { [k: string]: boolean };
   world: VoxelWorld;
@@ -34,13 +34,6 @@ export class Player {
     this.camera = camera;
     this.previousKeys = {};
     this.world = world;
-
-    // Load player position from index db
-    // localforage.getItem<Vector3>(`player-position`).then(position => {
-    //   if (position) {
-    //     camera.position.copy(position);
-    //   }
-    // });
   }
 
   public update(updateOptions: UpdateOptions) {
