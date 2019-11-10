@@ -7,6 +7,13 @@ const tileSize = 16;
 const tileTextureWidth = 256;
 const tileTextureHeight = 64;
 
+type Geometry = {
+  positions: number[];
+  normals: number[];
+  indices: number[];
+  uvs: number[];
+};
+
 ctx.addEventListener("message", function(e) {
   const [cell, cellX, cellY, cellZ] = e.data as [any, number, number, number];
   const positions = [];

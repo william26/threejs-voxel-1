@@ -1,4 +1,14 @@
-import { Vector3, Camera, Raycaster, Scene, PointLight } from "three";
+import {
+  Vector3,
+  Camera,
+  Raycaster,
+  Scene,
+  PointLight,
+  ArrowHelper,
+  BoxGeometry,
+  MeshBasicMaterial,
+  Mesh
+} from "three";
 
 import { UpdateOptions } from "./index";
 import {
@@ -8,6 +18,9 @@ import {
 } from "./hud/playerReducer";
 import { getCellKeyForPosition, getChunkKeyForPosition } from "./lsdfs";
 import localforage from "localforage";
+import { VoxelWorld } from "./VoxelWorld";
+
+let arrowHelper: THREE.Object3D | null = null;
 
 export class Player {
   camera: Camera;
@@ -15,25 +28,19 @@ export class Player {
   state: "walking" | "jumping" | "flying" = "jumping";
   stateModifier: "running" | "normal" = "normal";
   previousKeys: { [k: string]: boolean };
-  light: PointLight;
+  world: VoxelWorld;
 
-  constructor(camera: Camera, scene: Scene) {
+  constructor(camera: Camera, world: VoxelWorld) {
     this.camera = camera;
     this.previousKeys = {};
-    const light = new PointLight(0xffffff, 0.9, 16, 1);
-    light.position.copy(camera.position);
-    light.castShadow = true;
-    light.shadow.mapSize.width = 512;
-    light.shadow.mapSize.height = 512;
-    // scene.add(light);
-    this.light = light;
+    this.world = world;
 
     // Load player position from index db
-    localforage.getItem<Vector3>(`player-position`).then(position => {
-      if (position) {
-        camera.position.copy(position);
-      }
-    });
+    // localforage.getItem<Vector3>(`player-position`).then(position => {
+    //   if (position) {
+    //     camera.position.copy(position);
+    //   }
+    // });
   }
 
   public update(updateOptions: UpdateOptions) {
@@ -97,6 +104,44 @@ export class Player {
 
     if (this.state !== "flying") {
       this.speedVector.y -= 0.02;
+    }
+
+    if (!this.previousKeys.b && KEYS.b) {
+      const raycast = new Raycaster(
+        this.camera.position,
+        this.camera.getWorldDirection(new Vector3()),
+        0,
+        10
+      );
+      const intersections = raycast.intersectObjects(scene.children);
+      if (arrowHelper) {
+        scene.remove(arrowHelper);
+      }
+      arrowHelper = new ArrowHelper(
+        this.camera.getWorldDirection(new Vector3()),
+        this.camera.position,
+        10,
+        0xff000
+      );
+      scene.add(arrowHelper);
+      if (intersections.length) {
+        const [closestIntersect] = intersections;
+        if (closestIntersect.face) {
+          const position = new Vector3(
+            Math.floor(
+              closestIntersect.point.x + closestIntersect.face.normal.x / 2
+            ),
+            Math.floor(
+              closestIntersect.point.y + closestIntersect.face.normal.y / 2
+            ),
+            Math.floor(
+              closestIntersect.point.z + closestIntersect.face.normal.z / 2
+            )
+          );
+
+          this.world.setVoxel(position.x, position.y, position.z, 4);
+        }
+      }
     }
 
     const newPosition = camera.position.clone();
@@ -219,15 +264,12 @@ export class Player {
     );
 
     this.previousKeys = { ...KEYS };
-    this.light.position.copy(
-      camera.position.clone().setX(camera.position.x - 3)
-    );
-    i++;
-
+    renderIteration++;
     // Save player position for later load (see constructor)
-    if (i % 100 === 0) {
+    if (renderIteration % 100 === 0) {
       localforage.setItem<Vector3>(`player-position`, camera.position);
     }
   }
 }
-let i = 0;
+
+let renderIteration = 0;
