@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { Vector3, Mesh, MeshLambertMaterial, Scene, Texture } from "three";
 import GeometryWorker from "worker-loader!./geometry.worker";
 import DataWorker from "worker-loader!./world-data.worker";
-import localforage from "localforage";
+import { getItem, setItem } from "./persistence";
 
 import * as noise from "./noise";
 noise.seed(0.1);
@@ -98,9 +98,11 @@ export class VoxelWorld {
     const chunkKey = getCoordinatesKey(chunkX, 0, chunkZ);
 
     if (this.filledChunks[chunkKey]) {
-      return null;
+      return false;
     }
     this.filledChunks[chunkKey] = true;
+
+    console.log("GENERATING CHUNK", chunkKey);
 
     for (let x = 0; x < CHUNK_WIDTH; x++) {
       for (let z = 0; z < CHUNK_WIDTH; z++) {
@@ -115,6 +117,8 @@ export class VoxelWorld {
         );
       }
     }
+
+    return true;
   }
 
   filledData: { [k: string]: boolean } = {};
@@ -126,9 +130,7 @@ export class VoxelWorld {
     }
     this.filledData[cellKey] = true;
 
-    const savedData = await localforage.getItem<Uint8Array>(
-      `world-data:${cellKey}`
-    );
+    const savedData = await getItem<Uint8Array>(`world-data:${cellKey}`);
     if (savedData) {
       this.cells[cellKey] = savedData;
     }
@@ -137,7 +139,7 @@ export class VoxelWorld {
       const worker = new DataWorker();
       worker.onmessage = async e => {
         this.cells[cellKey] = e.data;
-        await localforage.setItem<Uint8Array>(`world-data:${cellKey}`, e.data);
+        await setItem<Uint8Array>(`world-data:${cellKey}`, e.data);
         resolve();
         worker.terminate();
       };
@@ -164,7 +166,6 @@ export class VoxelWorld {
       return;
     }
     this.filledMeshes[cellKey] = true;
-
     const geometryData = await this.generateGeometryDataForCell(
       cellX,
       cellY,
@@ -174,9 +175,7 @@ export class VoxelWorld {
     if (!geometryData) {
       return null;
     }
-
     const { positions, normals, indices, uvs } = geometryData;
-
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
       color: 0xffffff,
@@ -214,7 +213,7 @@ export class VoxelWorld {
 
     this.scene.add(mesh);
 
-    // await localforage.setItem<Mesh>(`world-mesh:${cellKey}`, mesh);
+    // await setItem<Mesh>(`world-mesh:${cellKey}`, mesh);
 
     return mesh;
   }
@@ -232,9 +231,11 @@ export class VoxelWorld {
     }
     this.filledGeometry[cellKey] = true;
 
-    const savedGeometry = await localforage.getItem<WorldMeshGeometryData>(
+    console.time(`DATA${cellKey}`);
+    const savedGeometry = await getItem<WorldMeshGeometryData>(
       `world-geometry:${cellKey}`
     );
+    console.timeEnd(`DATA${cellKey}`);
     if (savedGeometry) {
       return savedGeometry;
     }
@@ -243,7 +244,7 @@ export class VoxelWorld {
       const worker = new GeometryWorker();
       worker.postMessage([this.cells, cellX, cellY, cellZ]);
       worker.onmessage = async (e: any) => {
-        await localforage.setItem<WorldMeshGeometryData>(
+        await setItem<WorldMeshGeometryData>(
           `world-geometry:${cellKey}`,
           e.data as WorldMeshGeometryData
         );

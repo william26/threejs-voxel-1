@@ -1,5 +1,10 @@
 import "./hud/hudapp";
 import * as THREE from "three";
+import Stats from "stats.js";
+
+var stats = new Stats();
+stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+document.body.appendChild(stats.dom);
 
 window.THREE = THREE;
 
@@ -26,7 +31,6 @@ const aspect = window.innerWidth / window.innerHeight; // the canvas default
 const near = 0.1;
 const far = 10000;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-// -229.47, y: 11.75, z: -102.96
 
 camera.position.x = -28.89;
 camera.position.y = 119;
@@ -55,10 +59,10 @@ document.addEventListener("pointerlockchange", e => {
 });
 
 const scene = new THREE.Scene();
-scene.fog = new Fog(0x000000, 0.1, 128);
-scene.background = new Color(0x000000);
+// scene.fog = new Fog(0x000000, 0.1, 128);
+scene.background = new Color(0xf0f0f0);
 
-const directionalLight = new DirectionalLight(0xffffff, 1);
+const directionalLight = new DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(255, 255, 0);
 directionalLight.target.position.set(0, 0, 0);
 directionalLight.castShadow = true;
@@ -73,11 +77,10 @@ directionalLight.shadow.camera.right = d;
 directionalLight.shadow.camera.top = d;
 directionalLight.shadow.camera.bottom = -d;
 
-// scene.add(new CameraHelper(directionalLight.shadow.camera));
-// scene.add(directionalLight);
+scene.add(directionalLight);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0);
-// scene.add(ambientLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+scene.add(ambientLight);
 
 const loader = new THREE.TextureLoader();
 const texture = loader.load(voxelImage, render);
@@ -98,14 +101,13 @@ export type UpdateOptions = {
 
 const pointLight = new PointLight(0xffffff, 1, 50, 2);
 pointLight.castShadow = true;
-var sphereSize = 1;
 // var pointLightHelper = new THREE.PointLightHelper(pointLight, sphereSize);
 // pointLight.position.copy(camera.position);
 // scene.add(pointLightHelper);
 scene.add(pointLight);
 
 const cameraSpeed = new THREE.Vector3();
-function render() {
+async function render() {
   if (
     canvas.width !== window.innerWidth ||
     canvas.clientHeight !== window.innerHeight
@@ -118,15 +120,18 @@ function render() {
 
   Object.keys(world.filledChunks).forEach(filledChunkKey => {
     const { x, y, z } = getKeyCoordinates(filledChunkKey);
-    if (Math.abs(chunkX - x) > 1 || Math.abs(chunkZ - z) > 1) {
+    if (Math.abs(chunkX - x) > 2 || Math.abs(chunkZ - z) > 2) {
       world.clearChunk(x, y, z);
     }
   });
 
   async function generate() {
-    for (let x = 0; x < 3; x++) {
-      for (let z = 0; z < 3; z++) {
-        await world.generateChunk(chunkX + x - 1, 0, chunkZ + z - 1);
+    for (let x = -1; x <= 1; x++) {
+      for (let z = -1; z <= 1; z++) {
+        const generated = world.generateChunk(chunkX + x, 0, chunkZ + z);
+        if (!generated) {
+          return;
+        }
       }
     }
   }
@@ -150,7 +155,9 @@ function render() {
 let isLooping = true;
 
 function loop() {
+  stats.begin();
   render();
+  stats.end();
   if (isLooping) {
     window.requestAnimationFrame(loop);
   }

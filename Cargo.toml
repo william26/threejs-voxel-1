@@ -1,0 +1,11 @@
+[package]
+name = "minelike"
+version = "0.1.0"
+authors = ["Antoine Jackson"]
+edition = "2019"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2.54"
