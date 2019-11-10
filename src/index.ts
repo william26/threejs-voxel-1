@@ -153,11 +153,14 @@ async function render() {
 
   const playerUpdateStart = window.performance.now();
   if (player) {
-    player.update({
-      KEYS,
-      world,
-      scene
-    });
+    const currentCellKey = getCoordinatesKey(cellX, 0, cellZ);
+    if (world.filledMeshes[currentCellKey]) {
+      player.update({
+        KEYS,
+        world,
+        scene
+      });
+    }
   }
   window.data.playerUpdateTime = window.performance.now() - playerUpdateStart;
 

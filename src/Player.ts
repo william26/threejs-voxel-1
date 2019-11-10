@@ -12,7 +12,7 @@ import localforage from "localforage";
 export class Player {
   camera: Camera;
   speedVector = new Vector3(0, 0, 0);
-  state: "walking" | "jumping" | "flying" = "flying";
+  state: "walking" | "jumping" | "flying" = "jumping";
   stateModifier: "running" | "normal" = "normal";
   previousKeys: { [k: string]: boolean };
   light: PointLight;
