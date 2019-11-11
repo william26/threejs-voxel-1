@@ -35,6 +35,7 @@
   },
   "scripts": {
     "start": "webpack-dev-server",
-    "build": "webpack --env.mode=production"
+    "build": "webpack --env.mode=production",
+    "publish": "git subtree push --prefix compiled origin gh-pages"
   }
 }
