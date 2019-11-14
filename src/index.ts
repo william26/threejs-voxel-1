@@ -199,12 +199,12 @@ document.addEventListener("keyup", e => {
   KEYS[e.key.toLowerCase()] = false;
 });
 
-localforage.getItem<Vector3>(`player-position`).then(position => {
-  loop();
-  if (position) {
-    camera.position.copy(position);
-  }
-});
+// localforage.getItem<Vector3>(`player-position`).then(position => {
+loop();
+//   if (position) {
+//     camera.position.copy(position);
+//   }
+// });
 player = new Player(camera, world);
 
 const reticle = new THREE.Mesh(

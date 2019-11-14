@@ -99,7 +99,7 @@ export class Player {
       this.speedVector.y -= 0.02;
     }
 
-    if (!this.previousKeys.b && KEYS.b) {
+    if ((!this.previousKeys.b && KEYS.b) || (!this.previousKeys.n && KEYS.n)) {
       const raycast = new Raycaster(
         this.camera.position,
         this.camera.getWorldDirection(new Vector3()),
@@ -120,19 +120,28 @@ export class Player {
       if (intersections.length) {
         const [closestIntersect] = intersections;
         if (closestIntersect.face) {
+          const factor = KEYS.n ? -1 : 1;
           const position = new Vector3(
             Math.floor(
-              closestIntersect.point.x + closestIntersect.face.normal.x / 2
+              closestIntersect.point.x +
+                (closestIntersect.face.normal.x / 2) * factor
             ),
             Math.floor(
-              closestIntersect.point.y + closestIntersect.face.normal.y / 2
+              closestIntersect.point.y +
+                (closestIntersect.face.normal.y / 2) * factor
             ),
             Math.floor(
-              closestIntersect.point.z + closestIntersect.face.normal.z / 2
+              closestIntersect.point.z +
+                (closestIntersect.face.normal.z / 2) * factor
             )
           );
 
-          this.world.setVoxel(position.x, position.y, position.z, 4);
+          this.world.setVoxel(
+            position.x,
+            position.y,
+            position.z,
+            KEYS.n ? 0 : 4
+          );
         }
       }
     }

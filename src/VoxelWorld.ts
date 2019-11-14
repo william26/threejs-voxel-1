@@ -13,7 +13,8 @@ import {
   getCellCoordinates,
   getCellForVoxel,
   getCellKeyForPosition,
-  getVoxel
+  getVoxel,
+  generateGeometry
 } from "./lsdfs";
 import { CELL_WIDTH, CELL_HEIGHT, CHUNK_WIDTH } from "./world-constants";
 
@@ -69,14 +70,7 @@ export class VoxelWorld {
     const voxelOffset = computeVoxelOffset(x, y, z);
     cell[voxelOffset] = v;
     await setItem<Uint8Array>(`world-data:${cellKey}`, cell);
-    await this.updateGeometryDataForCell(
-      cellX,
-      cellY,
-      cellZ,
-      new Vector3(x, y, z),
-      v
-    );
-    await this.addCellMesh(cellX, cellY, cellZ, true);
+    return await this.addCellMesh(cellX, cellY, cellZ, true);
   }
 
   preloadedCells: { [k: string]: boolean } = {};
@@ -142,13 +136,14 @@ export class VoxelWorld {
 
     this.filledMeshes[cellKey] = true;
 
-    const geometryData = await this.getGeometryDataForCell(cellX, cellY, cellZ);
+    const geometryData = force
+      ? await this.generateGeometryDataForCell(cellX, cellY, cellZ, true)
+      : await this.getGeometryDataForCell(cellX, cellY, cellZ);
 
     if (!geometryData) {
       this.filledMeshes[cellKey] = false;
       return null;
     }
-
     const { positions, normals, indices, uvs } = geometryData;
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLambertMaterial({
@@ -207,9 +202,19 @@ export class VoxelWorld {
   async generateGeometryDataForCell(
     cellX: number,
     cellY: number,
-    cellZ: number
+    cellZ: number,
+    forceMainThread: boolean = false
   ) {
     const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
+    if (forceMainThread) {
+      const newGeometryData = generateGeometry(this.cells, cellX, cellY, cellZ);
+      setItem<WorldMeshGeometryData>(
+        `world-geometry:${cellKey}`,
+        newGeometryData
+      );
+      return newGeometryData;
+    }
+
     if (this.filledGeometry[cellKey]) {
       return Promise.resolve(null);
     }
@@ -239,80 +244,6 @@ export class VoxelWorld {
         worker.terminate();
       };
     });
-  }
-
-  async updateGeometryDataForCell(
-    cellX: number,
-    cellY: number,
-    cellZ: number,
-    voxelPosition: Vector3,
-    voxelType: number
-  ) {
-    const cellKey = getCoordinatesKey(cellX, cellY, cellZ);
-    const geometry = await this.getGeometryDataForCell(cellX, cellY, cellZ);
-
-    if (!geometry) {
-      console.log("NO GEOMETRY");
-      return;
-    }
-
-    const positions = geometry.positions;
-    const normals = geometry.normals;
-    const uvs = geometry.uvs;
-    const indices = geometry.indices;
-    const voxelCellX = voxelPosition.x % CELL_WIDTH;
-    const voxelCellY = voxelPosition.y % CELL_HEIGHT;
-    const voxelCellZ = voxelPosition.z % CELL_WIDTH;
-
-    const voxel = voxelType;
-    if (voxel) {
-      const tileSize = 16;
-      const tileTextureWidth = 256;
-      const tileTextureHeight = 64;
-
-      const uvVoxel = voxel - 1;
-      console.log("target", uvVoxel);
-      // There is a voxel here but do we need faces for it?
-      for (const { dir, corners, uvRow } of VoxelWorld.faces) {
-        const neighbor = getVoxel(
-          this.cells,
-          voxelPosition.x + dir[0],
-          voxelPosition.y + dir[1],
-          voxelPosition.z + dir[2]
-        );
-        if (!neighbor) {
-          // this voxel has no neighbor in this direction so we need a face.
-          const ndx = positions.length / 3;
-          for (const { pos, uv } of corners) {
-            positions.push(
-              pos[0] + voxelCellX,
-              pos[1] + voxelCellY,
-              pos[2] + voxelCellZ
-            );
-            normals.push(...dir);
-            uvs.push(
-              ((uvVoxel + uv[0]) * tileSize) / tileTextureWidth,
-              1 - ((uvRow + 1 - uv[1]) * tileSize) / tileTextureHeight
-            );
-          }
-          indices.push(ndx, ndx + 1, ndx + 2, ndx + 2, ndx + 1, ndx + 3);
-        }
-      }
-    }
-
-    const data = {
-      positions,
-      normals,
-      indices,
-      uvs
-    };
-
-    setItem<WorldMeshGeometryData>(
-      `world-geometry:${cellKey}`,
-      data as WorldMeshGeometryData
-    );
-
-    return data;
   }
 
   async getGeometryDataForCell(cellX: number, cellY: number, cellZ: number) {
@@ -399,6 +330,15 @@ export class VoxelWorld {
     return meshes.filter(Boolean) as Array<Mesh>;
   }
 }
+
+const neighbors = [
+  new Vector3(0, 1, 0),
+  new Vector3(1, 0, 0),
+  new Vector3(0, 0, 1),
+  new Vector3(0, -1, 0),
+  new Vector3(-1, 0, 0),
+  new Vector3(0, 0, -1)
+];
 
 VoxelWorld.faces = [
   {
