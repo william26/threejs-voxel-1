@@ -100,6 +100,11 @@ export type UpdateOptions = {
   KEYS: {
     [k: string]: boolean;
   };
+  MOUSE: {
+    left?: boolean;
+    right?: boolean;
+    middle?: boolean;
+  };
   world: VoxelWorld;
   scene: THREE.Scene;
 };
@@ -170,6 +175,7 @@ async function render() {
     if (world.filledMeshes[currentCellKey]) {
       player.update({
         KEYS,
+        MOUSE,
         world,
         scene
       });
@@ -197,6 +203,24 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("keyup", e => {
   KEYS[e.key.toLowerCase()] = false;
+});
+const MOUSE: UpdateOptions["MOUSE"] = {};
+const getKey = (e: MouseEvent) => {
+  switch (e.button) {
+    case 0:
+      return "left";
+    case 1:
+      return "middle";
+    case 2:
+      return "right";
+  }
+  throw new Error("Unkown key");
+};
+document.addEventListener("mousedown", e => {
+  MOUSE[getKey(e)] = true;
+});
+document.addEventListener("mouseup", e => {
+  MOUSE[getKey(e)] = false;
 });
 
 // localforage.getItem<Vector3>(`player-position`).then(position => {

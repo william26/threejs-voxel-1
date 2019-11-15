@@ -28,17 +28,19 @@ export class Player {
   state: "walking" | "jumping" | "flying" = "flying";
   stateModifier: "running" | "normal" = "normal";
   previousKeys: { [k: string]: boolean };
+  previousMouse: { left?: boolean; right?: boolean; middle?: boolean };
   world: VoxelWorld;
 
   constructor(camera: Camera, world: VoxelWorld) {
     this.camera = camera;
     this.previousKeys = {};
+    this.previousMouse = {};
     this.world = world;
   }
 
   public update(updateOptions: UpdateOptions) {
     const { camera } = this;
-    const { KEYS, world, scene } = updateOptions;
+    const { KEYS, MOUSE, world, scene } = updateOptions;
     const originalPosition = new Vector3();
     originalPosition.copy(camera.position);
     const playerDirectionVector = new Vector3();
@@ -99,7 +101,10 @@ export class Player {
       this.speedVector.y -= 0.02;
     }
 
-    if ((!this.previousKeys.b && KEYS.b) || (!this.previousKeys.n && KEYS.n)) {
+    if (
+      (!this.previousMouse.left && MOUSE.left) ||
+      (!this.previousMouse.right && MOUSE.right)
+    ) {
       const raycast = new Raycaster(
         this.camera.position,
         this.camera.getWorldDirection(new Vector3()),
@@ -120,7 +125,7 @@ export class Player {
       if (intersections.length) {
         const [closestIntersect] = intersections;
         if (closestIntersect.face) {
-          const factor = KEYS.n ? -1 : 1;
+          const factor = MOUSE.right ? -1 : 1;
           const position = new Vector3(
             Math.floor(
               closestIntersect.point.x +
@@ -140,14 +145,11 @@ export class Player {
             position.x,
             position.y,
             position.z,
-            KEYS.n ? 0 : 4
+            MOUSE.right ? 0 : 4
           );
         }
       }
     }
-
-    const newPosition = camera.position.clone();
-    newPosition.add(this.speedVector);
 
     const rayCasterA = new Raycaster(
       camera.position
@@ -256,7 +258,6 @@ export class Player {
       }
     });
     window.store.dispatch(setPosition(camera.position.clone()));
-
     camera.position.add(this.speedVector);
     window.store.dispatch(
       setCurrentCell(getCellKeyForPosition(camera.position))
@@ -266,6 +267,7 @@ export class Player {
     );
 
     this.previousKeys = { ...KEYS };
+    this.previousMouse = { ...MOUSE };
     renderIteration++;
     // Save player position for later load (see constructor)
     if (renderIteration % 100 === 0) {
