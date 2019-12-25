@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Vector3 } from "three";
 import { CELL_WIDTH, CELL_HEIGHT, CHUNK_WIDTH } from "./world-constants";
+import { MarchingCubes } from "./MarchingCubes";
 const tileSize = 16;
 const tileTextureWidth = 256;
 const tileTextureHeight = 64;
